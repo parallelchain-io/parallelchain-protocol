@@ -14,20 +14,34 @@ There can be many, many validators, spread across the globe. To make sure that t
 
 The 7 highlighted items in the description you just read correspond to the 7 different aspects of the ParallelChain Mainnet protocol described in this specification. Each aspect is described in this folder as a separate markdown document. We don’t believe there is one right place to start reading this specification. Just jump to an aspect you are interested in, and start reading.
 
+---
+
 ## If you are reading this document as a PDF
 
 The ParallelChain Mainnet specification is originally written in the form of a set of 7 markdown documents. This PDF combines the 7 markdown documents into a single PDF document, which some readers may prefer, but invalidates some of the inter-document hyperlinks in the text. 
 
 The specification is available in its original format on [GitHub](http://github.com/parallelchain-io/parallelchain-specification).
 
-## Authors
+## Opening an issue
 
-The technical substance of this protocol is the result of thinking and deliberation by members of the ParallelChain Lab team, primarily *Alice Lim*, but also incorporating substantial input from *Alvin Hon*, and others.
+You should open an issue on GitHub if you:
+1. Have a feature request / feature idea.
+2. Have any questions.
+3. Think may have discovered a bug.
 
-This specification was written by *Alice Lim*, and she has ultimate authority to interpret its details.
+Please try to label your issues appropriately.
 
-## Copyright and License
+## Contributors
+
+The ParallelChain protocol specification is authored by Alice Lim, but the technical substance of the protocol is the result of thinking and deliberation by many contributors, and particularly by members of the ParallelChain Lab team.
+
+Below is the list of individuals who have made outsized contributions to the technical substance of the protocol. As ParallelChain continues to evolve and improve, we expect this list to continue to grow:
+1. [**Alice Lim**](https://github.com/lyulka) (architect & author).
+2. **Alvin Hon**.
+
+## Copyright and license
 
 Copyright 2023, ParallelChain Lab.
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+
