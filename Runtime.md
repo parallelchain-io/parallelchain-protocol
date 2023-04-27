@@ -425,8 +425,8 @@ if !ws.nas.pools.contains(operator) {
 if let Some(stake) = ws.nas.pools[operator].get_stake(owner) {
     let existing_power = stake.power;
     let new_power = stake.power.saturating_sub(max_amount);
-    
-    ws.nas.pools[operator].change_balance(owner, new_power);
+
+    stake.change_power(new_power);
 
     let amount_unstaked = existing_power - new_power;
 
