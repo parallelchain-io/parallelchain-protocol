@@ -11,7 +11,7 @@ We charge gas for 5 categories of operations:
 - [Reading and writing WASM memory from host functions](#host-function-execution-inside-a-contract-call) inside a contract call.
 - [Transaction-related data storage](#transaction-related-data-storage).
 - [World state storage and access](#world-state-storage-and-access).
-- [Cryptographic operations in work steps](#cryptographic-operations-in-work-steps).
+- [Cryptographic operations in the commands phase](#cryptographic-operations-in-the-commands-phase).
 
 These categories are not an exhaustive enumeration of all of the tasks that a validator does to maintain service for users, but are what we deem to be the tasks that are either most expensive, or most variable, and therefore most vulnerable to abuse by users if they are free.  
 
@@ -86,7 +86,7 @@ For operations on a specific storage MPT, the key length is $G_{acckeylen}$, *pl
 
 |Name|Value|Description|
 |---|---|---|
-|$G_{acckeylen}|33|The length of keys in the root world state MPT.|
+|$G_{acckeylen}$|33|The length of keys in the root world state MPT.|
 
 ### Cost of *get* 
 
@@ -142,7 +142,7 @@ $$
 |$G_{sgetcontractdisc}$|50%|Proportion of $G_{sset}$ which is discounted if the tuple contains a contract.|None|
 
 
-## Cryptographic operations inside work steps
+## Cryptographic operations in the commands phase  
 
 |Name|Value|Description|
 |---|---|---|

@@ -127,7 +127,7 @@ An **exit code** is an enum included in a command receipt that informs how a com
 |Operation failed|The command failed to do what it is supposed to do.|
 |Gas exhausted|Execution *halted* in the middle of the command because the gas limit was hit.|
 
-The above descriptions of "operation successful" and "operation failed" are intentionally vague. What "operation successful" and "operation failed" means depends on the variant of the command. The runtime document has a [table](Runtime.md#commands) that should help with interpreting exit codes, as well as return values, in the context of command variants.
+The above descriptions of "operation successful" and "operation failed" are intentionally vague. What "operation successful" and "operation failed" means depends on the variant of the command. This is specified in [runtime](Runtime.md).
 
 ### Log
 

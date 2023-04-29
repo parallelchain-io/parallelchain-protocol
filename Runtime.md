@@ -10,51 +10,12 @@ At a high level, the runtime is an impure function that takes in the world state
 
 Runtime: $(ws, bctx, txn) \rightarrow rcp$.
 
-The run function proceeds in three phases, which are called “pre-charge”, “work”, and “charge”. The first and last phases are common to all transactions, while the work phase is specific to the sequence of commands in a particular transaction. The execution of commands is where transactions become really useful, so the bulk of this document is dedicated to specifying the work phase. 
+The run function proceeds in three phases, which are called “pre-charge”, “command(s)”, and “charge”. The first and last phases are common to all transactions, while the commands phase is specific to the sequence of commands in a particular transaction. The execution of commands is where transactions become really useful, so the bulk of this document is dedicated to specifying the commands phase. 
 
 This document specifies the runtime in four sections:
-1. The [first section](#commands) lists and describes all of the available commands at a high level, including specifying the command data type, which features in the transaction type.
-2. The [second section](#execution-model) sets up the basic terminology, symbols, and control flow concepts that we will use to specify the sequence flow of transaction execution.
-3. The [third section](#common-phases) specifies the sequence flow of transaction execution through pre-charge and charge phases.
-4. The [fourth section](#work-phase) specifies the sequence flow of transaction execution through the work phase.
-
-## Commands
-
-There are currently 13 different kinds of commands, each corresponding to a variant of the command enum type. These are further divided into three categories: account commands, staking commands, and protocol commands. Most commands take inputs, which are part of the command type as the fields of its corresponding variant. These are listed in the second column of the following tables.
-
-This section lists and briefly describes each kind of command, beginning with those in the account commands category and ending with protocol commands. Higher-level context about staking and proof of stake in the ParallelChain protocol is available in the world state document.
-
-### Account commands
-
-|**Name**|**Input**|**Description**|
-|---|---|---|
-|Transfer|<ul> <li>Recipient (`PublicAddress`)</li> <li>Amount (`u64`)</li>|Transfer an amount from the signer's balance to the recipient's balance.|
-|Deploy|<ul> <li>Contract (`Vec<u8>`)</li> <li>CBI version (`u32`)</li> </ul>|Deploy a contract that implements a given CBI version.|
-|Call|<ul> <li>Target (`PublicAddress`)</li> <li>method (`String`)</li> <li>arguments (`Option<Vec<Vec<u8>>>`)</li> <li>amount (`Option<u64>`)</li></ul>|Call a contract with the given method and arguments, optionally transferring some tokens.|
-
-### Staking commands
-
-|**Name**|**Input**|**Description**|
-|---|---|---|
-|Create pool|<ul> <li>Commission rate (`u8`)</li> </ul>|Create a new pool with the signer as the operator an which charges a given commission rate on the validator rewards of delegated stakes.|
-|Set pool settings|<ul> <li>Commission rate (`u8`)</li> </ul>|Set the commission rate of an existing pool, operated by the signer.|
-|Delete pool|None|Delete an existing pool, also deleting all of its existing stakes.|
-|Create Deposit|<ul> <li>Operator (`PublicAddress`)</li> <li>Balance (`u64`)</li> <li>Auto stake rewards? (`bool`)</li> </ul>|Create a deposit that targets a given operator, with the given balance, and which may or may not automatically stake the validator rewards that it receives.|
-|Top up deposit|<ul> <li>Operator (`PublicAddress`)</li> <li>Balance (`u64`)</li> </ul>|Transfer more tokens into an existing deposit.|
-|Set deposit settings|<ul> <li>Operator (`PublicAddress`)</li> <li>Auto stake rewards? (`bool`)</li> </ul>|Set whether a given deposit automatically stakes validator rewards.|
-|Withdraw Deposit|<ul> <li>Operator (`PublicAdddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to withdraw a given amount from a deposit into the signer's balance.|
-|Stake|<ul> <li>Operator (`PublicAddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to stake a given amount from a deposit.|
-|Unstake|<ul> <li>Operator (`PublicAddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to reduce a deposit's stake by a given amount.|
-
-The actual amount of tokens that could be withdrawn, staked, or unstaked by the final three kinds of commands depends on timing and ordering, factors that users do not have precise control over. For example, the number of tokens that can be withdrawn can change significantly between epochs, as a deposit's [bonded balance](World%20State.md#delegated-proof-of-stake) decreases, or increases. 
-
-Therefore, these commands accept as input a "max amount" instead of a precise amount. These commands try to withdraw, stake, or unstake as close to the maximum amount as possible, and inform the precise amount in its return value.
-
-### Protocol commands
-
-|Name|Input|Description|
-|---|---|---|
-|Next epoch|None|Reward the current epoch's validators, and confirm the next epoch's validator set.|
+1. The [first section](#execution-model) sets up the basic terminology, symbols, and control flow concepts that we will use to specify the sequence flow of transaction execution.
+2. The [second section](#common-phases) specifies the sequence flow of transaction execution through pre-charge and charge phases.
+3. The [third section](#commands) specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
 
 ## Execution model
 
@@ -87,7 +48,7 @@ Besides the three inputs and the one output, we also keep track of 4 additional 
 |$logs$|`Vec<Log>`|The logs created in the execution of a command.|`Vec::new()`|
 |$rval$|`Vec<u8>`|The return value of a command.|`Vec::new()`|
 |$gc$|`u64`|The amount of gas used so far.|$G_{txincl}(txn)$|
-|$sg$|`u64`|The value of gas used at the start of an iteration of the work phase|$G_{txincl}(txn)$|
+|$sg$|`u64`|The value of gas used at the start of an iteration of the commands phase|$G_{txincl}(txn)$|
 
 The latter two state variables are significant for [gas counting](#gas-counting).
 
@@ -97,22 +58,22 @@ Execution can transition from one phase to another in a few different ways. We r
 
 ![Control flow of transaction execution](assets/txn_exec_control_flow.drawio.png)
 
-The diagram above depicts the control flow. The left side of the diagram depicts the normal sequence of transitions in an execution. The right side of the diagram depicts exceptional transitions. All transitions (except the transition from pre-charge to the first iteration of the work phase) are triggered by a named event, these are the names inset in the lines in the diagram. There are four kinds of events: *cancel*, *complete*, *abort*, and *gas exhausted*.
+The diagram above depicts the control flow. The left side of the diagram depicts the normal sequence of transitions in an execution. The right side of the diagram depicts exceptional transitions. All transitions (except the transition from pre-charge to the first iteration of the commands phase) are triggered by a named event, these are the names inset in the lines in the diagram. There are four kinds of events: *cancel*, *complete*, *abort*, and *gas exhausted*.
 
-In the normal case, execution beings at the pre-charge phase, then transitions to the first iteration of the work phase after the pre-charge phase is fully executed, then transitions through each iteration of the work phase and onto the charge phase on *complete*s. If the transaction does not have any commands, execution passes directly from pre-charge to charge.
+In the normal case, execution beings at the pre-charge phase, then transitions to the first iteration of the commands phase after the pre-charge phase is fully executed, then transitions through each iteration of the commands phase and onto the charge phase on *complete*s. If the transaction does not have any commands, execution passes directly from pre-charge to charge.
 
 In exceptional cases, execution can be *cancel*led in the pre-charge phase, or jump directly to the charge phase on *abort* or *gas exhausted*.
 
 **cancel** is triggered explicitly if the transaction does not satisfy one of the checks done in the pre-charge step. This causes execution to end immediately, and for the transaction to be excluded from the block.
 
-**complete** is triggered explicitly after an iteration of the work phase is fully executed. This causes:
+**complete** is triggered explicitly after an iteration of the commands phase is fully executed. This causes:
 1. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation success as the exit code,
 2. the command receipt to be appended to $rcp$,
 3. $logs$ and $rval$ to be cleared.
 4. $sg = gc$.
-5. and execution to pass to the next iteration of the work phase if there is a next iteration, and to the charge phase otherwise.
+5. and execution to pass to the next iteration of the commands phase if there is a next iteration, and to the charge phase otherwise.
 
-**abort** is triggered explicitly if some command-specific invariant is violated during an iteration of the work phase. This causes:
+**abort** is triggered explicitly if some command-specific invariant is violated during an iteration of the commands phase. This causes:
 1. all changes to the world state done in the current and preceding commands to be reverted, without changing $gc$,
 2. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation failed as the exit code,
 3. the command receipt to be appended to $rcp$,
@@ -126,7 +87,7 @@ In exceptional cases, execution can be *cancel*led in the pre-charge phase, or j
 
 ### Gas counting
 
-$gc$ is adjusted *before* each step **in the work phase** that involves operations in one of the [5 categories](Gas.md#gas) listed in the gas specification. Execution in the pre-charge and charge steps are paid for in the [transaction inclusion cost](Gas.md#transaction-inclusion-cost), which is included in the initial value of $gc$. 
+$gc$ is adjusted *before* each step **in the commands phase** that involves operations in one of the [5 categories](Gas.md#gas) listed in the gas specification. Execution in the pre-charge and charge steps are paid for in the [transaction inclusion cost](Gas.md#transaction-inclusion-cost), which is included in the initial value of $gc$. 
 
 The cost of storing a minimal size command receipt for each of a transaction's commands is also already covered by the transaction inclusion cost. In exceptional circumstances, a transaction's receipt may contain less command receipts than there are commands. The cost of storing the excess command receipts in these cases are *not* refunded.
 
@@ -136,7 +97,7 @@ The cost of storing the return value is charged on setting $rval$, the cost of s
 
 Throughout this document, we specify sequence flows using a Rust-like pseudocode.
 
-The pseudocode snippets have available in their environment the variables introduced in [state variables](#state-variables) and named constants and formulas of the form “D_name”. The snippets specifying the work phase for each command have available the additional variable `input`, which is the specific command’s input. 
+The pseudocode snippets have available in their environment the variables introduced in [state variables](#state-variables) and named constants and formulas of the form “D_name”. The snippets specifying the commands phase for each command have available the additional variable `input`, which is the specific command’s input. 
 
 `ws` is treated like a struct with a field `nas`, which is the network account’s storage. `nas` is itself a struct with fields corresponding to the fields listed in the [world state specification](World%20State.md#network-account-storage-data-types). The `previous_validator_set`, `current_validator_set` and `next_validator_set` fields in particular are are Index Heaps, and operations on them are available as methods in Rust syntax.
 
@@ -176,13 +137,20 @@ ws[bctx.proposer].balance += gc * txn.priority_fee_per_gas;
 ws[W_treasury].balance += gc * bctx.base_fee_per_gas * G_treasurybasefee;
 ```
 
-## Work phase
+## Commands phase 
+
+There are currently 13 different kinds of commands, each corresponding to a variant of the command enum type. These are further divided into three categories: account commands, staking commands, and protocol commands. Most commands take inputs, which are part of the command type as the fields of its corresponding variant. These are listed in the second column of the following tables.
+
+This section lists and briefly describes each kind of command, beginning with those in the account commands category and ending with protocol commands. Higher-level context about staking and proof of stake in the ParallelChain protocol is available in the world state document.
 
 ### Account commands
 
 #### Transfer
 
-Steps:
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|0|Transfer|<ul> <li>Recipient (`PublicAddress`)</li> <li>Amount (`u64`)</li>|Transfer an amount from the signer's balance to the recipient's balance.|
+
 ```rust
 if ws[signer].balance < input.amount {
     abort!()
@@ -194,7 +162,10 @@ ws[input.recipient].balance += input.amount;
 
 #### Deploy
 
-Steps:
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|1|Deploy|<ul> <li>Contract (`Vec<u8>`)</li> <li>CBI version (`u32`)</li> </ul>|Deploy a contract that implements a given CBI version.|
+
 ```rust
 let contract_addr = sha256((txn.signer, txn.nonce));
 if let Ok(_) = instantiate(input.contract, input.cbi_version) {
@@ -205,7 +176,10 @@ if let Ok(_) = instantiate(input.contract, input.cbi_version) {
 
 #### Call
 
-Steps:
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|2|Call|<ul> <li>Target (`PublicAddress`)</li> <li>method (`String`)</li> <li>arguments (`Option<Vec<Vec<u8>>>`)</li> <li>amount (`Option<u64>`)</li></ul>|Call a contract with the given method and arguments, optionally transferring some tokens.|
+
 ```rust
 let contract = ws[input.target].contract;
 if contract.is_none() {
@@ -222,7 +196,15 @@ if let Ok(instance) = instantiate(contract, cbi_version) {
 
 ### Staking commands
 
+The actual amount of tokens that could be withdrawn, staked, or unstaked by the final three kinds of commands depends on timing and ordering, factors that users do not have precise control over. For example, the number of tokens that can be withdrawn can change significantly between epochs, as a deposit's [bonded balance](World%20State.md#delegated-proof-of-stake) decreases, or increases. 
+
+Therefore, these commands accept as input a "max amount" instead of a precise amount. These commands try to withdraw, stake, or unstake as close to the maximum amount as possible, and inform the precise amount in its return value.
+
 #### Create Pool 
+
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|3|Create pool|<ul> <li>Commission rate (`u8`)</li> </ul>|Create a new pool with the signer as the operator an which charges a given commission rate on the validator rewards of delegated stakes.|
 
 ```rust
 let operator = txn.signer;
@@ -246,6 +228,10 @@ ws.nas.pools[operator] = Pool {
 
 #### Set Pool Settings
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|4|Set pool settings|<ul> <li>Commission rate (`u8`)</li> </ul>|Set the commission rate of an existing pool, operated by the signer.|
+
 ```rust
 let operator = txn.signer;
 
@@ -267,6 +253,10 @@ ws.nas.pools[operator].commission_rate = input.commission_rate;
 
 #### Delete Pool
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|5|Delete pool|None|Delete an existing pool, also deleting all of its existing stakes.|
+
 ```rust
 let operator = txn.signer;
 
@@ -281,6 +271,10 @@ ws.nas.pools[operator] = "";
 
 #### Create Deposit
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|6|Create Deposit|<ul> <li>Operator (`PublicAddress`)</li> <li>Balance (`u64`)</li> <li>Auto stake rewards? (`bool`)</li> </ul>|Create a deposit that targets a given operator, with the given balance, and which may or may not automatically stake the validator rewards that it receives.|
+
 ```rust
 let owner = txn.signer;
 
@@ -292,11 +286,17 @@ if !pools.contains(input.operator)
 
 ws[owner].balance -= input.balance;
 
-ws.nas.deposits[(input.operator, input.owner)].balance = input.balance;
-ws.nas.deposits[(input.operator, input.owner)].auto_stake_rewards = input.auto_stake_rewards;
+ws.nas.deposits[(input.operator, input.owner)] = Deposit {
+    balance: input.balance,
+    auto_stake_rewards: input.auto_stake_rewards,
+}
 ```
 
 #### Set Deposit Settings
+
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|7|Set deposit settings|<ul> <li>Operator (`PublicAddress`)</li> <li>Auto stake rewards? (`bool`)</li> </ul>|Set whether a given deposit automatically stakes validator rewards.|
 
 ```rust
 let owner = txn.signer;
@@ -315,6 +315,10 @@ ws.nas.deposits[(input.operator, owner)].auto_stake_rewards = input.auto_stake_r
 
 #### Top-Up Deposit
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|8|Top up deposit|<ul> <li>Operator (`PublicAddress`)</li> <li>Balance (`u64`)</li> </ul>|Transfer more tokens into an existing deposit.|
+
 ```rust
 let owner = txn.signer;
 
@@ -328,6 +332,10 @@ ws.nas.deposits[(operator, owner)].amount += input.amount;
 ```
 
 #### Withdraw Deposit
+
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|9|Withdraw Deposit|<ul> <li>Operator (`PublicAdddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to withdraw a given amount from a deposit into the signer's balance.|
 
 ```rust
 let owner = txn.signer;
@@ -357,11 +365,11 @@ if new_deposit_balance == 0 {
     ws.nas.deposits[(operator, owner)].balance = new_deposit_balance;
 }
 
-// If the new deposit balance is less than the stake in the next epoch, change the latter's power to new deposit balance.
-if Some(stake) = ws.nas.pools[input.operator].get_stake(owner) {
-    if stake.power < curr_deposit_balance {
+// If the new deposit balance is less than its tentative stake, change the latter's power to new deposit balance.
+if let Some(pool) = ws.nas.pools.get(input.operator) {
+    if let Some(stake) = pool.get_stake(owner) {
         stake.change_power(curr_deposit_balance);
-    } 
+    }
 }
 
 // Return the amount that is withdrawn.
@@ -369,6 +377,10 @@ rval = withdrawal_amount;
 ```
 
 #### Stake Deposit
+
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|10|Stake|<ul> <li>Operator (`PublicAddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to stake a given amount from a deposit.|
 
 ```rust
 let owner = txn.signer;
@@ -411,6 +423,10 @@ rval = amount_staked;
 
 #### Unstake Deposit
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|11|Unstake|<ul> <li>Operator (`PublicAddress`)</li> <li>Max amount (`u64`)</li> </ul>|Try to reduce a deposit's stake by a given amount.|
+
 ```rust
 let owner = txn.signer;
 
@@ -439,76 +455,71 @@ if let Some(stake) = ws.nas.pools[operator].get_stake(owner) {
 
 ### Protocol commands
 
+|**Variant**|**Name**|**Input**|**Description**|
+|---|---|---|---|
+|12|Next epoch|None|Reward the current epoch's validators, and confirm the next epoch's validator set.|
+
 #### Next Epoch
 
-
 ```rust
-let current_epoch = ws.nas.current_epoch;
-let pending_to_auto_stake = [];
-
-// 1. Reward each Stake in VS
-for pool in ws.nas.current_validator_set {
-    // 1.1 calculate total reward
-    let pool_reward = calculate_pool_reward(current_epoch, pool.power, block_performance);
-
-    // 1.2 Calculate total stakes of this pool
-    let total_stakes = pool.operator_state + pool.delegated_stakes.iter().map(|stake| stake.power ).sum();
-
-    let total_commission_fee = pool.delegated_stakes.iter().map(|stake| calculate_commission_fee(stake.power, total_stakes) ).sum();
-
-    // 1.3 Distribute pool rewards to stakers
-    let stakers_reward = pool.delegated_stakes.iter().map(|stake| {
-        (stake.owner, calculate_stake_reward(stake.power, total_stakes))
-    }).collect();
-
-    for (staker, reward) in stakers_reward {
-        if let Some(balance) = ws.nas.deposits[(pool.operator, staker)].balance {
-            ws.nas.deposits[(pool.operator, staker)].balance = balance + reward;
-        }
-
-        if ws.nas.deposits[(pool.operator, staker)].auto_stake_rewards == Some(true) {
-            pending_to_auto_stake.push((pool.operator, staker, reward));
-        }
-    }
+// Iterate through pools in the current validator set.
+for pool in nas.current_validator_set {
+    let pool_reward = R_poolreward(epoch, pools.len(), pool.operator);
     
-    // 1.4 Reward Pool's own stakes 
-    let pool_operator_total_reward = calculate_stake_reward(pool.operator_stake, total_stakes) + total_commission_fee;
+    // Reward the delegated stakes in the pool. 
+    let mut total_commission_fee = 0;
+    for stake in pool.delegated_stakes {
+        let gross_stake_reward = R_gstakereward(pool_reward, stake.power, pool.power);
+        let commission_fee = R_commissionfee(pool.commission_rate, pool_reward, stake.power, pool.power);
+        total_commission_fee += commission_fee;
 
-    if let Some(balance) = ws.nas.deposits[(pool.operator, pool.operator)].balance {
-        ws.nas.deposits[(pool.operator, pool.operator)].balance = balance + pool_operator_total_reward;
+        let net_stake_reward = gross_stake_reward - commission_fee;
+ 
+        // Deposit the delegator's reward.
+        let deposit = nas.deposits[(stake.operator, stake.owner)];
+        deposit.balance += net_stake_reward;
+        
+        // (Auto) stake the delegator's reward. 
+        if deposit.auto_stake_reward {
+            if let Some(next_stake) = nas.pools.get_stake(stake.owner) {
+                next_stake.change_power(next_stake.balance + net_stake_reward);
+            } else {
+                nas.next_validator_set.insert_stake(stake.owner, net_stake_reward);
+            }
+        }
+    }
+
+    // Reward the pool operator.
+    let operator_stake_reward = R_gstakereward(pool_reward, stake.power, pool.power) + total_commission_fee;
+
+    if let Some(deposit) = nas.deposits.get((stake.operator, stake.owner)) {
+        deposit.balance += operator_stake_reward;
+
+        if deposit.auto_stake_reward {
+            if let Some(next_stake) = nas.pools.get_stake(stake.owner) {
+                next_stake.change_power(next_stake.balance + operator_stake_reward);
+            } else {
+                nas.next_validator_set.insert_stake(stake.owner, net_stake_reward);
+            }
+        }
     } else {
-        // create deposit if not exist
-        ws.nas.deposits[(pool.operator, pool.operator)].balance = pool_operator_total_reward; 
-        ws.nas.deposits[(pool.operator, pool.operator)].auto_stake_rewards = false;
-    }
-
-    if ws.nas.deposits[(pool.operator, pool.operator)].auto_stake_rewards == Some(true) {
-        pending_to_auto_stake.push((pool.operator, pool.operator, pool_reward));
+        ws.nas.deposits[(stake.operator, stake.owner)] = Deposit {
+            balance: operator_stake_reward,
+            auto_stake_rewards: false,
+        }
     }
 }
 
-// Auto Stake to NVP
-for (operator, owner, increase_stake) in pending_to_auto_stake {
-    let existing_pool_power = ws.nas.pools[operator].power.unwrap_or(0);
-    let stake = ws.nas.pools[operator].get_stake(owner);
-    stake.change_power(existing_pool_power + increase_stake); // also update the NVS
-}
+// Replace previous validator set with current validator set.
+ws.nas.previous_validator_set = ws.nas.current_validator_set;
 
-// 2. Replace PVS with VS
-ws.nas.previous_validator_set.clear();
-for pool in ws.nas.current_validator_set {
-    ws.nas.previous_validator_set.push(pool);
-}
+// Replace current validator set with next validator set.
+ws.nas.current_validator_set = ws.nas.next_validator_set;
 
-// 3. Replace VS with NVS
-ws.nas.current_validator_set.clear();
-for pool in ws.nas.next_validator_set {
-    ws.nas.current.validator_set.push(pool);
-}
-
-// 4. Bump up Current Epoch by 1.
+// Increment current epoch.
 ws.nas.current_epoch += 1;
 ```
+
 
 Where the pool reward at epoch $n$ is given by multiplying the pool's total stake by $B_{epochissuance}(n)$.
 
