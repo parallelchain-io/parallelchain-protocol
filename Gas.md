@@ -80,7 +80,7 @@ We begin with a brief description of how the cost formulas apply differently to 
 
 The cost formulas specified in this section are all functions that take in the length of the key to be operated on as an argument. 
 
-For operations on the root MPT, the key length is always $G_{acckeylen}$, corresponding to the keys of the [account structure](World State.md).
+For operations on the root MPT, the key length is always $G_{acckeylen}$, corresponding to the keys of the [account structure](World%20State.md).
 
 For operations on a specific storage MPT, the key length is $G_{acckeylen}$, *plus* the length of the storage key. This simulates an archictecture that has each storage MPT 'attached' as a subtrie of the root MPT on the tuple that stores the account's storage hash.
 

@@ -464,12 +464,12 @@ if let Some(stake) = ws.nas.pools[operator].get_stake(owner) {
 ```rust
 // Iterate through pools in the current validator set.
 for pool in nas.current_validator_set {
-    let pool_reward = R_poolreward(epoch, pools.len(), pool.operator);
+    let pool_reward = R_poolreward(epoch, pools.len(), pool.power, num_blocks_proposed(n, pool.operator));
     
     // Reward the delegated stakes in the pool. 
     let mut total_commission_fee = 0;
     for stake in pool.delegated_stakes {
-        let gross_stake_reward = R_gstakereward(pool_reward, stake.power, pool.power);
+        let gross_stake_reward = R_grsstakereward(pool_reward, stake.power, pool.power);
         let commission_fee = R_commissionfee(pool.commission_rate, pool_reward, stake.power, pool.power);
         total_commission_fee += commission_fee;
 
@@ -490,7 +490,7 @@ for pool in nas.current_validator_set {
     }
 
     // Reward the pool operator.
-    let operator_stake_reward = R_gstakereward(pool_reward, stake.power, pool.power) + total_commission_fee;
+    let operator_stake_reward = R_grsstakereward(pool_reward, stake.power, pool.power) + total_commission_fee;
 
     if let Some(deposit) = nas.deposits.get((stake.operator, stake.owner)) {
         deposit.balance += operator_stake_reward;
@@ -520,12 +520,36 @@ ws.nas.current_validator_set = ws.nas.next_validator_set;
 ws.nas.current_epoch += 1;
 ```
 
+The above sequence flow invokes functions that collectively decide how many tokens are rewarded to each particular stake at the end of an epoch:
 
-Where the pool reward at epoch $n$ is given by multiplying the pool's total stake by $B_{epochissuance}(n)$.
+**`R_poolreward(n, v, p, rb)`** is the number of tokens rewarded at the end of epoch $n$--which had a total of $v$ validators--to a pool with $p$ power and which had proposed $rb$ blocks in the epoch:
 
 $$
-B_{epochissuance}(n) = \begin{dcases}
-\frac{0.0835 \times 0.85^{\frac{n}{365}}}{365} &\text { if } n < 3650, \\
-\frac{0.015}{365} &\text{ if } n \ge 3650, 
+R_{poolreward}(n, v, rb, p) = p \times \begin{dcases}
+\frac{835 \times E_{ireduct}(n) \times rb}{365 \times E_{expblocks}(v) \times 1000000} &\text{ if } n < 3650 \text{ and } rb < E_{expblocks}(v), \\
+\frac{835 \times E_{ireduct}(n)}{365 \times 1000000} &\text{ if } n < 3650 \text{ and } rb \ge E_{expblocks}(v), \\
+\frac{15 \times rb}{365 \times E_{expblocks}(v)  \times 1000}&\text{ if } n \ge 3650 \text{ and } rb < E_{expblocks}(v), \\
+\frac{15}{365 \times 1000} &\text{ if } n \ge 3650 \text{ and } rb \ge E_{expblocks}(v), \\
 \end{dcases}
 $$
+
+Where $E_{expblocks}(v) = B_{epoch}/v$, and $E_{ireduct}$ is a sequence of pre-computed values, specified in pchain-formulas (WIP).
+
+The intended result of this formula is for the reward rate to reduce gradually from around 8% per annum in the first year of the blockchain's history, to 1.5% per annum by year 10.
+
+**`R_grsstakereward(pr, sp, pp)`** is the number of tokens in a pool reward $pr$ rewarded to a particular stake with power $sp$ included in a total pool power of $pp$:
+
+$$
+R_{grsstakereward}(pr, sp, pp) = \frac{pr \times sp}{pp}
+$$
+
+**`R_commissionfee(r, pr, sp, pp)`** is the number of tokens in a delegated stake reward paid to the pool's operator if the commission rate is $r$, the pool reward is $pr$, the stake's power is $sp$, and the total pool power is $pp$:
+
+$$
+R_{commissionfee}(r, pr, sp, pp) = \frac{r \times pr}{pp \times 100}
+$$
+
+**`num_blocks_proposed(n, op)`** is the number of blocks in the range $[n\times B_{epoch}, (n+1)\times B_{epoch})$ that were proposed by operator $op$. Note that range is inclusive of block $n \times B_{epoch}$, which is proposed in the previous epoch. This is an oversight, and will be rectified in the next version of the protocol. 
+
+
+
