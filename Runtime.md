@@ -6,20 +6,21 @@
 
 The runtime is the component in the ParallelChain protocol which executes transactions.
 
-At a high level, the runtime is an impure function that takes in the world state ($ws$), a block context ($bctx$), and a transaction ($txn$) as inputs, mutates the world state, and returns a receipt ($rcp$) as output:
+At a high level, the runtime is an impure function ($run) that takes in the world state ($ws$), a block context ($bctx$), and a transaction ($txn$) as inputs, mutates the world state, and returns a receipt ($rcp$) as output:
 
-Runtime: $(ws, bctx, txn) \rightarrow rcp$.
+$run$: $(ws, bctx, txn) \rightarrow rcp$.
 
-The run function proceeds in three phases, which are called “pre-charge”, “command(s)”, and “charge”. The first and last phases are common to all transactions, while the commands phase is specific to the sequence of commands in a particular transaction. The execution of commands is where transactions become really useful, so the bulk of this document is dedicated to specifying the commands phase. 
+The run function proceeds in three phases, which are called “pre-charge”, “commands”, and “charge”. The first and last phases are common to all transactions, while the commands phase is specific to the sequence of commands in a particular transaction. The execution of commands is where transactions become really useful, so the bulk of this document is dedicated to specifying the commands phase. 
 
-This document specifies the runtime in four sections:
-1. The [first section](#execution-model) sets up the basic terminology, symbols, and control flow concepts that we will use to specify the sequence flow of transaction execution.
-2. The [second section](#common-phases) specifies the sequence flow of transaction execution through pre-charge and charge phases.
+This chapter specifies the runtime in three sections:
+1. The [first section](#execution-model) introduces the basic terminology, symbols, and control flow concepts that we will use to specify the run function.
+2. The [second section](#common-phases) specifies the sequence flow of the run function through the pre-charge and charge phases.
 3. The [third section](#commands) specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
 
 ## Execution model
 
-As explained at the beginning of this document, the runtime is modelled as an impure function that proceeds in three phases. This section gives a clearer picture of this model. It is organized into four subsections:
+This section introduces the basic terminology, symbols, and control flow concepts that we will use to specify the run function:
+
 1. The [first subsection](#state-variables) lists variables that we keep track of through a transaction execution, including inputs and output, and internal variables.
 2. The [second subsection](#control-flow) describes how execution jumps between the three phases (both in the normal case, and in exceptional cases).
 3. The [third subsection](#gas-counting) specifies gas counting.
@@ -45,41 +46,42 @@ Besides the three inputs and the one output, we also keep track of 4 additional 
 
 |Name|Type|Description|Initial value|
 |---|---|---|---|
+|$idx$|`u32`|The index of the current command being executed|`0`|
 |$logs$|`Vec<Log>`|The logs created in the execution of a command.|`Vec::new()`|
 |$rval$|`Vec<u8>`|The return value of a command.|`Vec::new()`|
 |$gc$|`u64`|The amount of gas used so far.|$G_{txincl}(txn)$|
 |$sg$|`u64`|The value of gas used at the start of an iteration of the commands phase|$G_{txincl}(txn)$|
 
-The latter two state variables are significant for [gas counting](#gas-counting).
+The latter two state variables are used for [gas counting](#gas-counting).
 
 ### Control flow
 
-Execution can transition from one phase to another in a few different ways. We refer to these collectively as the “control flow” of transaction execution, and specify them in this subsection.
+Execution can transition from one phase to another in a few different ways. We refer to these collectively as the “control flow” of transaction execution.
 
 ![Control flow of transaction execution](assets/txn_exec_control_flow.drawio.png)
 
 The diagram above depicts the control flow. The left side of the diagram depicts the normal sequence of transitions in an execution. The right side of the diagram depicts exceptional transitions. All transitions (except the transition from pre-charge to the first iteration of the commands phase) are triggered by a named event, these are the names inset in the lines in the diagram. There are four kinds of events: *cancel*, *complete*, *abort*, and *gas exhausted*.
 
-In the normal case, execution beings at the pre-charge phase, then transitions to the first iteration of the commands phase after the pre-charge phase is fully executed, then transitions through each iteration of the commands phase and onto the charge phase on *complete*s. If the transaction does not have any commands, execution passes directly from pre-charge to charge.
+In the normal case, execution begins at the pre-charge phase, then transitions to the first iteration of the commands phase after the pre-charge phase is fully executed, then transitions through each iteration of the commands phase and onto the charge phase on *complete*s. If the transaction does not have any commands, execution passes directly from pre-charge to charge.
 
 In exceptional cases, execution can be *cancel*led in the pre-charge phase, or jump directly to the charge phase on *abort* or *gas exhausted*.
 
-**cancel** is triggered explicitly if the transaction does not satisfy one of the checks done in the pre-charge step. This causes execution to end immediately, and for the transaction to be excluded from the block.
+*Cancel* is triggered explicitly if the transaction does not satisfy one of the checks done in the pre-charge step. This causes execution to end immediately, and for the transaction to be excluded from the block.
 
-**complete** is triggered explicitly after an iteration of the commands phase is fully executed. This causes:
+*Complete* is triggered explicitly after an iteration of the commands phase is fully executed. This causes:
 1. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation success as the exit code,
 2. the command receipt to be appended to $rcp$,
 3. $logs$ and $rval$ to be cleared.
 4. $sg = gc$.
 5. and execution to pass to the next iteration of the commands phase if there is a next iteration, and to the charge phase otherwise.
 
-**abort** is triggered explicitly if some command-specific invariant is violated during an iteration of the commands phase. This causes:
+*Abort* is triggered explicitly if some command-specific invariant is violated during an iteration of the commands phase. This causes:
 1. all changes to the world state done in the current and preceding commands to be reverted, without changing $gc$,
 2. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation failed as the exit code,
 3. the command receipt to be appended to $rcp$,
 4. and execution to pass to the charge phase.
 
-**gas exhausted** is triggered automatically after $gc$ exceeds the transaction’s gas limit. This causes:
+*Gas exhausted* is triggered automatically after $gc$ exceeds the transaction’s gas limit. This causes:
 1. all changes to the world state done in the current and preceding commands to be reverted, without changing $gc$,
 2. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with gas exhausted as the exit code,
 3. the command receipt to be appended to $rcp$,
@@ -87,7 +89,7 @@ In exceptional cases, execution can be *cancel*led in the pre-charge phase, or j
 
 ### Gas counting
 
-$gc$ is adjusted *before* each step **in the commands phase** that involves operations in one of the [5 categories](Gas.md#gas) listed in the gas specification. Execution in the pre-charge and charge steps are paid for in the [transaction inclusion cost](Gas.md#transaction-inclusion-cost), which is included in the initial value of $gc$. 
+$gc$ is adjusted *before* each step *in the commands phase* that involves operations in one of the [5 categories](Gas.md#gas) listed in the gas specification. Execution of steps in the pre-charge and charge phases do not adjust $gc$. They are paid for in the [transaction inclusion cost](Gas.md#transaction-inclusion-cost), which is included up-front in the initial value of $gc$.
 
 The cost of storing a minimal size command receipt for each of a transaction's commands is also already covered by the transaction inclusion cost. In exceptional circumstances, a transaction's receipt may contain less command receipts than there are commands. The cost of storing the excess command receipts in these cases are *not* refunded.
 
@@ -97,7 +99,7 @@ The cost of storing the return value is charged on setting $rval$, the cost of s
 
 Throughout this document, we specify sequence flows using a Rust-like pseudocode.
 
-The pseudocode snippets have available in their environment the variables introduced in [state variables](#state-variables) and named constants and formulas of the form “D_name”. The snippets specifying the commands phase for each command have available the additional variable `input`, which is the specific command’s input. 
+The pseudocode snippets have available in their environment the variables introduced in [state variables](#state-variables) and named constants and formulas introduced throughout the protocol of the form “C_name”. The snippets specifying the commands phase for each command have available the additional variable `input`, which is the specific command’s input. 
 
 `ws` is treated like a struct with a field `nas`, which is the network account’s storage. `nas` is itself a struct with fields corresponding to the fields listed in the [world state specification](World%20State.md#network-account-storage-data-types). The `previous_validator_set`, `current_validator_set` and `next_validator_set` fields in particular are are Index Heaps, and operations on them are available as methods in Rust syntax.
 
@@ -137,7 +139,7 @@ ws[bctx.proposer].balance += gc * txn.priority_fee_per_gas;
 ws[W_treasury].balance += gc * bctx.base_fee_per_gas * G_treasurybasefee;
 ```
 
-## Commands phase 
+## Commands 
 
 There are currently 13 different kinds of commands, each corresponding to a variant of the command enum type. These are further divided into three categories: account commands, staking commands, and protocol commands. Most commands take inputs, which are part of the command type as the fields of its corresponding variant. These are listed in the second column of the following tables.
 
@@ -167,7 +169,7 @@ ws[input.recipient].balance += input.amount;
 |1|Deploy|<ul> <li>Contract (`Vec<u8>`)</li> <li>CBI version (`u32`)</li> </ul>|Deploy a contract that implements a given CBI version.|
 
 ```rust
-let contract_addr = sha256((txn.signer, txn.nonce));
+let contract_addr = C_address(txn.signer, txn.nonce);
 if let Ok(_) = instantiate(input.contract, input.cbi_version) {
     ws[contract_addr].contract = input.contract;
     ws[contract_addr].cbi_version = input.cbi_version;
@@ -196,7 +198,7 @@ if let Ok(instance) = instantiate(contract, cbi_version) {
 
 ### Staking commands
 
-The actual amount of tokens that could be withdrawn, staked, or unstaked by the final three kinds of commands depends on timing and ordering, factors that users do not have precise control over. For example, the number of tokens that can be withdrawn can change significantly between epochs, as a deposit's [bonded balance](World%20State.md#delegated-proof-of-stake) decreases, or increases. 
+The actual amount of tokens that could be withdrawn, staked, or unstaked by the final three kinds of commands depends on timing and ordering, factors that users do not have precise control over. For example, the number of tokens that can be withdrawn from a deposit can change significantly between epochs as the deposit's [bonded balance](Blockchain.md#delegated-proof-of-stake) decreases, or increases. 
 
 Therefore, these commands accept as input a "max amount" instead of a precise amount. These commands try to withdraw, stake, or unstake as close to the maximum amount as possible, and inform the precise amount in its return value.
 
@@ -260,7 +262,7 @@ ws.nas.pools[operator].commission_rate = input.commission_rate;
 ```rust
 let operator = txn.signer;
 
-if !pools.contains(operator) {
+if !ws.nas.pools.contains(operator) {
     abort!()
 }
 
@@ -278,8 +280,8 @@ ws.nas.pools[operator] = "";
 ```rust
 let owner = txn.signer;
 
-if !pools.contains(input.operator)
-    || deposits.contains((input.operator, owner))
+if !ws.nas.pools.contains(input.operator)
+    || ws.nas.deposits.contains((input.operator, owner))
     || ws[owner].balance < input.balance {
     abort!()
 }
@@ -520,7 +522,9 @@ ws.nas.current_validator_set = ws.nas.next_validator_set;
 ws.nas.current_epoch += 1;
 ```
 
-The above sequence flow invokes functions that collectively decide how many tokens are rewarded to each particular stake at the end of an epoch:
+The above sequence flow invokes formulas that collectively decide how many tokens are rewarded to each particular stake at the end of an epoch.
+
+The intended result of these formulas is for the reward rate to reduce gradually from around 8.5% per annum in the first year of the blockchain's history, to 1.5% per annum by year 10:
 
 **`R_poolreward(n, v, p, rb)`** is the number of tokens rewarded at the end of epoch $n$--which had a total of $v$ validators--to a pool with $p$ power and which had proposed $rb$ blocks in the epoch:
 
@@ -535,8 +539,6 @@ $$
 
 Where $E_{expblocks}(v) = B_{epoch}/v$, and $E_{ireduct}$ is a sequence of pre-computed values, specified in pchain-formulas (WIP).
 
-The intended result of this formula is for the reward rate to reduce gradually from around 8% per annum in the first year of the blockchain's history, to 1.5% per annum by year 10.
-
 **`R_grsstakereward(pr, sp, pp)`** is the number of tokens in a pool reward $pr$ rewarded to a particular stake with power $sp$ included in a total pool power of $pp$:
 
 $$
@@ -549,7 +551,4 @@ $$
 R_{commissionfee}(r, pr, sp, pp) = \frac{r \times pr}{pp \times 100}
 $$
 
-**`num_blocks_proposed(n, op)`** is the number of blocks in the range $[n\times B_{epoch}, (n+1)\times B_{epoch})$ that were proposed by operator $op$. Note that range is inclusive of block $n \times B_{epoch}$, which is proposed in the previous epoch. This is an oversight, and will be rectified in the next version of the protocol. 
-
-
-
+**`num_blocks_proposed(n, op)`** is the number of blocks in the range $[n\times B_{epoch}, (n+1)\times B_{epoch})$ that were proposed by operator $op$. 

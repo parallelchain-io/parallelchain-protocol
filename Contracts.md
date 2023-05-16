@@ -6,7 +6,7 @@
 
 Contracts are code that are deployed into contract accounts. They have exclusive write access into their account's state.
 
-This document specifies the latest version of the Contract Binary Interface (CBI): version 0.0.
+This chapter specifies the latest version of the Contract Binary Interface (CBI): version 0.0.
 
 The CBI is a versioned standard that specifies three things:
 1. [Contract validity](#contract-validity): properties that code must satisfy to be deployed as a contract and be called.

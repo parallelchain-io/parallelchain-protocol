@@ -11,7 +11,7 @@ We charge gas for 5 categories of operations:
 - [Reading and writing WASM memory from host functions](#host-function-execution-inside-a-contract-call) inside a contract call.
 - [Transaction-related data storage](#transaction-related-data-storage).
 - [World state storage and access](#world-state-storage-and-access).
-- [Cryptographic operations in the commands phase](#cryptographic-operations-in-the-commands-phase).
+- [Cryptographic operations](#cryptographic-operations).
 
 These categories are not an exhaustive enumeration of all of the tasks that a validator does to maintain service for users, but are what we deem to be the tasks that are either most expensive, or most variable, and therefore most vulnerable to abuse by users if they are free.  
 
@@ -50,13 +50,13 @@ To achieve this desideratum, we set the cost of writing 1 byte as a multiple of 
 
 Transaction-related data includes every byte in the Borsh-serialization of transactions (and its fields), and receipts (and its fields). Each byte of transaction-related data costs $G_{txdata}$ to store.
 
-|Name|Value|Description|Ethereum counterpart|
+|Formula|Value|Description|Ethereum counterpart|
 |---|---|---|---|
 |$G_{txdata}$|30|Cost of including 1 byte of data in a Block as part of a transaction or a receipt.|$G_{txdatanonzero} = 16$|
 
 The cost of storing a transaction and the fixed-sized component of its receipt ($G_{minrcpsize}) is known before the transaction is executed and charged in the transaction's [inclusion cost](#transaction-inclusion-cost).
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$G_{minrcpsize}(cmds)$|$4 + cmds \times G_{cmdrcpminsize}$|Serialized size of a receipt containing $cmds$ minimum-sized command receipts.|
 |$G_{mincmdrcpsize}$|$17$|Serialized size of a minimum-size command receipt.|
@@ -84,7 +84,7 @@ For operations on the root MPT, the key length is always $G_{acckeylen}$, corres
 
 For operations on a specific storage MPT, the key length is $G_{acckeylen}$, *plus* the length of the storage key. This simulates an archictecture that has each storage MPT 'attached' as a subtrie of the root MPT on the tuple that stores the account's storage hash.
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$G_{acckeylen}$|33|The length of keys in the root world state MPT.|
 
@@ -132,7 +132,7 @@ $$
 
 ### Constants
 
-|Name|Value|Description|Ethereum counterpart|
+|Formula|Value|Description|Ethereum counterpart|
 |---|---|---|---|
 |$G_{swrite}$|2500|Cost of writing a single byte into the world state.|$G_{sset} = 20000$ for storing 32 bytes, so $625$ per byte.|
 |$G_{sread}$|50|Cost of reading a single byte from the world state.|$G_{coldsload} = 2100$ for loading 32 bytes, so roughly $65$ per byte.| 
@@ -142,9 +142,9 @@ $$
 |$G_{sgetcontractdisc}$|50%|Proportion of $G_{sset}$ which is discounted if the tuple contains a contract.|None|
 
 
-## Cryptographic operations in the commands phase  
+## Cryptographic operations  
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 $G_{wsha256}(len)$|$len \times 16$|Cost of computing the SHA256 hash over a message of length $len$|
 $G_{wkeccak256}(len)$|$len \times 16$|Cost of computing the Keccak256 hash over a message of length $len$|
@@ -195,7 +195,7 @@ To be included in the blockchain, a transaction must, at the minimum, be able to
     - The proposer's balance.
     - The treasury's balance.
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$G_{txincl}(txn)$|$[serialize(txn).len() + G_{minrcpsize}(txn.commands)] \times G_{txdata} + 5 \times [G_{sget}(8) + G_{sset}(8)]$|Cost of including a transaction $txn$ in the blockchain that is borne at the beginning of its execution.| 
 

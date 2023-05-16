@@ -30,7 +30,7 @@ A **block** is a structure composed of a fixed-size header and variable-size dat
 
 An epoch is a sequence of blocks, and therefore indirectly a length of time, through which membership of the validator set is constant. This is analogous to the notion of a “term” in a democratic government, during which the membership of a parliament or a legislative body is fixed. All epochs are $B_{epochlen}$ long, except the first (0th) epoch, which is one block longer ($[0, B_{epochlen}]$).
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$B_{epochlen}$|8,640|Blocks at heights that are a multiple of this (except the 0th block) are epoch boundary blocks.|
 
@@ -58,13 +58,13 @@ A **block header** summarizes the data of a block, as well as contain metadata u
 |Logs bloom|`[u8; 256]`|A bloom filter generated over all logs in the block's receipts. This starts as a 2048-bits ($2^11$ bits) array of all zeros, then is populated using the following procedure: for every log, SHA256-hash its topic, take the first 11 bits of each of the three least-significant pairs of bytes in the digest, and then use each of these 11 bits to index into a bit in the log bloom and set it to 1.|
 
 The amount of the network's computation and storage resources that a block can consume is limited by a cap on gas used:
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$B_{maxgasused}$|250,000,000|The (inclusive) maximum value of the gas used field in a block's header.|
 
 #### Base fee formula
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$B_{minbasefee}$|8|The minimum allowed value in a block's base fee per gas field.|
 |$B_{tgtgasused}$|$B_{maxgasused}/2$|The target gas used in a block.|
@@ -121,11 +121,11 @@ More precisely, a receipt is a sequence of **command receipts**, each of which d
 
 An **exit code** is an enum included in a command receipt that informs how a command exited. A command can exit in one of three ways:
 
-|Variant|Description|
-|---|---|
-|Operation successful|The command successfully did what it is supposed to do.|
-|Operation failed|The command failed to do what it is supposed to do.|
-|Gas exhausted|Execution *halted* in the middle of the command because the gas limit was hit.|
+|Variant|Name|Description|
+|---|---|---|
+|0|Operation successful|The command successfully did what it is supposed to do.|
+|1|Operation failed|The command failed to do what it is supposed to do.|
+|2|Gas exhausted|Execution *halted* in the middle of the command because the gas limit was hit.|
 
 The above descriptions of "operation successful" and "operation failed" are intentionally vague. What "operation successful" and "operation failed" means depends on the variant of the command. This is specified in [runtime](Runtime.md).
 
@@ -162,7 +162,7 @@ There are two kinds of stake: An **operator stake** is a stake in a pool whose o
 
 Similarly to how only the top $B_{vscap}$ largest pools become part of the validator set, a pool can contain a maximum of $B_{poolcap}$ *delegated* stakes. Not similarly, however, is that stakes are either part of a pool, or it doesn’t exist: a stake deposit command that tries to create a stake that is smaller that the smallest stake currently in the pool will fail, and a stake that is  displaced by a larger stake ceases to exist (but their balance remains in its associated deposit). This is unlike how pools can exist but not be part of a validator set.
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$B_{vscap}$|63|The maximum size of the validator set.|
 |$B_{poolcap}$|127|The maximum number of delegated stakes in a pool.|
@@ -193,7 +193,7 @@ Generally speaking, state machine replication algorithms for the partially synch
 
 The ParallelChain protocol uses HotStuff-rs' [default pacemaker](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/pacemaker/struct.DefaultPacemaker.html) with $B_{tbt}$ as the value for minimum view timeout. 
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$B_{tbt}$|10|Target block time in seconds.|
 |$B_{netlatency}$|2|Expected worst-case network latency.|

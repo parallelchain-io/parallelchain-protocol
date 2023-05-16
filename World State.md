@@ -4,8 +4,7 @@
 |---|
 |0|
 
-Following in Ethereum, we call the singular user-visible state that the ParallelChain protocol maintains the "world state". The
-world state is a set of key-value tuples representing the state of every *account*, stored inside a [paritytech/trie-db](https://docs.rs/trie-db/latest/trie_db/) Merkle Patricia Trie (MPT).
+Following in Ethereum, we call the singular user-visible state that the ParallelChain protocol maintains the "world state". The world state is a set of key-value tuples representing the state of every *account*, stored inside a [paritytech/trie-db](https://docs.rs/trie-db/latest/trie_db/) Merkle Patricia Trie (MPT).
 
 This document specifies the contents of the world state, and is organized into three sections:
 1. The [first section](#accounts) lists the state that is stored in a general account.
@@ -20,7 +19,11 @@ There are two main kinds of account, and they differ in how they trigger state c
 1. *External accounts*, which trigger state changes by digitally signing transactions, and
 2. *Contract accounts*, which trigger state changes when [called](Runtime.md#call) according to the logic in its code.
 
-Each account is uniquely identified by a 32-byte sequence called a *public address*. An external account's public address can be any Ed25519 public key, while a contract account's public address is the SHA256 of the concatenation of the signer and nonce fields of the transaction which [deployed](Runtime.md#deploy) it.
+Each account is uniquely identified by a 32-byte sequence called a *public address*. An external account's public address can be any Ed25519 public key, while a contract account's public address is the SHA256 of the concatenation of the signer and nonce fields of the transaction which [deployed](Runtime.md#deploy) it. 
+
+|Formula|Value|Description|
+|---|---|---|
+|$W_{contractaddr}(s, n)$|$SHA256((s, n))$|The address of a contract deployed in a transaction with signer = $s$ and nonce = $n$.|
 
 Each account has 5 fields, each stored in the world state at a key formed by concatenating the account's address with a specific 1-byte key suffix.
 
@@ -34,7 +37,7 @@ Each account has 5 fields, each stored in the world state at a key formed by con
 
 All token balances and amounts related to balances (e.g. stake powers) are stored in grays:
 
-|Name|Value|Description|
+|Formula|Value|Description|
 |---|---|---|
 |$W_{xplltogray}$|$10^8$|Conversion factor between XPLL and gray. 1 XPLL = $W_{xplltogray}$ grays.|
 
