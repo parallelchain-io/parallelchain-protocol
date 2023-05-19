@@ -530,8 +530,8 @@ The intended result of these formulas is for the reward rate to reduce gradually
 
 $$
 R_{poolreward}(n, v, rb, p) = p \times \begin{dcases}
-\frac{835 \times E_{ireduct}(n) \times rb}{365 \times E_{expblocks}(v) \times 1000000} &\text{ if } n < 3650 \text{ and } rb < E_{expblocks}(v), \\
-\frac{835 \times E_{ireduct}(n)}{365 \times 1000000} &\text{ if } n < 3650 \text{ and } rb \ge E_{expblocks}(v), \\
+\frac{835 \times E_{ireduct}(n) \times rb}{365 \times E_{expblocks}(v) \times 100000000} &\text{ if } n < 3650 \text{ and } rb < E_{expblocks}(v), \\
+\frac{835 \times E_{ireduct}(n)}{365 \times 100000000} &\text{ if } n < 3650 \text{ and } rb \ge E_{expblocks}(v), \\
 \frac{15 \times rb}{365 \times E_{expblocks}(v)  \times 1000}&\text{ if } n \ge 3650 \text{ and } rb < E_{expblocks}(v), \\
 \frac{15}{365 \times 1000} &\text{ if } n \ge 3650 \text{ and } rb \ge E_{expblocks}(v), \\
 \end{dcases}
