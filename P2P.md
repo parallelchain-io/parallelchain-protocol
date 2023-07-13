@@ -11,6 +11,7 @@ TODO:
 
 TODO:
 * Brief description of GossipSub.
+* IdentTopic.
 
 ### Topics
 
