@@ -30,7 +30,7 @@ libp2p continually evolves, and new versions of libp2p protocols are frequently 
 P2P substreams are built using four protocols, each implementing a specific functionality listed with before it in the table below:
 
 |Functionality|Protocol|Details|
-|---|---|
+|---|---|---|
 |Domain Name Resolution|[`dns`](https://github.com/libp2p/specs/blob/master/addressing/README.md#ip-and-name-resolution)||
 |OSI Level 4 Transport|TCP||
 |Authentication and Security|[Noise](https://github.com/libp2p/specs/blob/master/noise/README.md)|Using the XX handshake pattern and the replica's keypair.
