@@ -1,4 +1,4 @@
-# Blockchain 
+# Blockchain
 
 |Revision no.|
 |---|
@@ -6,15 +6,14 @@
 
 The ParallelChain blockchain is a sequence of blocks, which in turn are sequences of transactions.
 
-Executing a transaction creates a receipt, a compact description of what happened in a transaction. When a validator becomes the leader, it uses the runtime to execute pending transactions, and then packs admissible transactions and their receipts into a block. It then passes the block to the consensus provider, which works to replicate the block in all replicas.
+Executing a transaction creates a receipt, a compact description of what happened in a transaction. When a validator becomes the leader, it uses the runtime to execute pending transactions, and then packs admissible transactions and their receipts into a block. It then passes the block to a consensus library called [HotStuff-rs](https://github.com/parallelchain-io/hotstuff_rs), which works to replicate the block in all replicas.
 
-This document specifies the block-level features of this flow. It is organized into three sections: 
-1. The [first section](#blockchain-data-types) specifies the data types that are included in the blockchain, this includes chiefly transaction and block. 
-2. The [second section](#replication) specifies how the ParallelChain protocol uses HotStuff-rs to replicate the blockchain. 
-3. Throughout this document, we define several constants that we  generally refer to as "limits", things like the maximum size of blocks, or the maximum time replicas wait for a leader to propose a block before listening to the next leader. These limits are decided through semi-standardized experiments on real hardware. These are described in the [third and final section](#deciding-limits).
-
-
-## Blockchain data types
+This chapter specifies the "block-level" features of this flow. It is organized into three sections: 
+1. The [first section](#data-types) specifies the data types that are included in the blockchain. This includes, chiefly, block and transaction.
+2. The [second section](#replication) explains how the protocol safely replicates the blockchain in multiple replicas. This includes how replicas use HotStuff-rs to achieve consensus on blocks.
+3. The [third section](#deciding-limits) describes the semi-standardized experiments we used to decide the values of a set of constants called "limits" which we introduce throughout this chapter. Limits set upper-bounds on network resource consumption. This includes, for example, the maximum size of blocks. 
+ 
+## Data types
 
 ### Block
 
@@ -36,9 +35,9 @@ An epoch is a sequence of blocks, and therefore indirectly a length of time, thr
 
 Blocks whose height is a multiple of $B_{epochlen}$ (except the 0th block) are *epoch boundary blocks*. 
 
-Epoch boundary blocks are special in that they contain only one transaction, signed by the block's proposer. This transaction in turn only has one command: [next epoch](Runtime.md#next-epoch). Epoch boundary blocks cause the validator set to be changed.
+Epoch boundary blocks are special in that they contain only one transaction, signed by the block's proposer. This transaction in turn only has one command: [next epoch](Runtime.md#next-epoch). Epoch boundary blocks may cause the validator set to  change.
 
-### Block header
+### Block Header
 
 A **block header** summarizes the data of a block, as well as contain metadata used in consensus and gives context about the block's creation and its position in the chain:
 
@@ -48,14 +47,21 @@ A **block header** summarizes the data of a block, as well as contain metadata u
 |Height|`u64`|The number of justify-links between this block and the genesis block 0. 0 in the genesis block.|
 |Justify|`QuorumCertificate`|A Quorum Certificate that points to the block's parent.|
 |Chain ID|`u64`|A number unique to this particular ParallelChain Mainnet-based chain's history. This prevents blocks from one chain being confused as being for another chain. For Mainnet, this is 0.|
+|Data Hash|`CryptoHash`|The SHA256 hash over (Chain ID, Proposer, Timestamp, Transactions Hash, State Hash, Receipts Hash, Base Fee Per Gas, Gas Used, Logs Bloom)[^1]|
 |Proposer|`PublicAddress`|The public address of the validator that is the leader of the view this block was proposed in.|
-|Timestamp|`u64`|A unix timestamp. This must be in the range `[prev_block.timestamp, local_time + 15]`.|
+|Timestamp|`u64`|A unix timestamp. The Timestamp on a block must be strictly greater than the Timestamp on its parent, and strictly smaller than the process' (replica or client) local time.|
 |Base Fee Per Gas|`u64`|The (inclusive) minimum number of grays that a transaction in must pay for every [gas](Runtime.md#gas-used) used to be included in this block. How this value is decided is specified in [base fee formula](#base-fee-formula).|
 |Gas used|`u64`|The gas used to store and execute all of the block's transactions. This is exactly the sum of: <ol><li>The $G_{txincl}$ of every transaction in the block.</li> <li>The value in the gas used field of every command receipt in the block.|
-|Transactions Hash</li></ol>|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' transactions, constructed using [rs_merkle](https://docs.rs/rs_merkle/latest/rs_merkle/). Each leaf is a transactions' hash, and each transaction are placed in the tree in the order they appear in the block.|
+|Transactions Hash</li></ol>|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' transactions, constructed using [rs_merkle](https://docs.rs/rs_merkle/latest/rs_merkle/). Each leaf is a *full transaction*[^2], and each transaction are placed in the tree in the order they appear in the block.|
 |Receipts Hash|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' receipts. This is similar to transactions hash, but each leaf is the SHA256 hash of a receipt's bytes encoding.|
 |State Hash|`CryptoHash`|The root hash of the [world state](World%20State.md) after executing this block.
-|Logs bloom|`[u8; 256]`|A bloom filter generated over all logs in the block's receipts. This starts as a 2048-bits ($2^11$ bits) array of all zeros, then is populated using the following procedure: for every log, SHA256-hash its topic, take the first 11 bits of each of the three least-significant pairs of bytes in the digest, and then use each of these 11 bits to index into a bit in the log bloom and set it to 1.|
+|Logs bloom|`[u8; 256]`|A bloom filter generated over all logs in the block's receipts. This starts as a 2048-bits ($2^{11}$ bits) array of all zeros, then is populated using the following procedure: for every log, SHA256-hash its topic, take the first 11 bits of each of the three least-significant pairs of bytes in the digest, and then use each of these 11 bits to index into a bit in the log bloom and set it to 1.|
+
+[^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/16) to make the order of fields in the pre-image of data hash in line with the order of fields in block header.
+
+[^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/17) to compute have the leaves of the merkle tree used to compute a block's transactions hash contain only a transaction hash, not a full transaction.
+
+#### Maximum gas used
 
 The amount of the network's computation and storage resources that a block can consume is limited by a cap on gas used:
 |Formula|Value|Description|
@@ -89,6 +95,59 @@ This mechanism is nearly identical to [Ethereum's](https://github.com/paradigmxy
 1. $B_{basefeedelta}$ is not piecewise. This is intentional.
 2. The minimum base fee per gas is 8 instead of 7. This difference is a design oversight, and one that we intend to rectify in the next protocol major version.
 
+### HotStuff-rs Block
+
+Separate from the block data type defined previously, HotStuff-rs also defines a [block](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/types/struct.Block.html) data type. These two types are closely related, and either one can be converted into the other. This section specifies [the equivalence](#equivalence-between-hotstuff-rs-blocks-and-protocol-blocks) between the two block types.
+
+Wherever it is necessary in this specification to disambiguate between the two block types, we refer to the block type defined in HotStuff-rs as "HotStuff-rs block", and the block type defined previously as "protocol block". HotStuff-rs does not define a block header type, so "block header"-only unambiguously refers to the block header type defined in this chapter.
+
+A **HotStuff-rs block** is a structure with five fields:
+|Field|Type|Description|
+|---|---|---|
+|Height|`u64`|Same as [block header](#block-header) Height.|
+|Hash|`CryptoHash`|Same as [block header](#block-header) Hash.|
+|Justify|`QuorumCertificate`|Same as [block header](#block-header) Justify.|
+|Data Hash|`CryptoHash`|Same as [block header](#block-header) Data Hash.|
+|Data|`Vec<Vec<u8>>`|Same as [block header](#block-header) Data.|
+
+#### Equivalence between HotStuff-rs blocks and protocol blocks
+
+We specify the equivalence between the two block types by considering each of a protocol block's fields first-to-last. For each protocol block field, we specify the the field in an equivalent HotStuff-rs block in which the field must be stored.
+
+The first field in a protocol block is the Header. The first four fields (Hash, Height, Justify, and Data) in protocol block headers correspond to the identically-named fields in HotStuff-rs blocks. The only difference is that Height appears before Hash in HotStuff-rs blocks[^3].
+
+The rest of the fields in a block header are Borsh-serialized and stored in specific indices of the HotStuff-rs block Data field. Specifically:
+
+|Index in Data|Protocol block header field|
+|---|---|
+|0|Chain ID|
+|1|Proposer|
+|2|Timestamp|
+|3|Transactions Hash[^4]|
+|4|State Hash|
+|5|Receipts Hash|
+|6|Base Fee Per Gas|
+|7|Gas Used|
+|8|Logs Bloom|
+
+The penultimate and final fields in a protocol block are the Transactions and the Receipts respectively. Each transaction and each receipt in a block sits in an individual index in the Data vector after the Header fields, with all transactions coming before all receipts, and in the same order as they appear in the protocol block. So, for a block with $n$ transactions, the equivalent HotStuff-rs block's Data contains:
+ 
+|Index in Data|Protocol block (`p_block`) field|
+|---|---|
+|8 + 1|`p_block.transactions[0]`|
+|8 + 2|`p_block.transactions[1]`|
+|...|...|
+|8 + $n$|`p_block.transactions[n]`|
+|(8 + $n$) + 1|`p_block.receipts[0]`|
+|(8 + $n$) + 2|`p_block.receipts[1]`|
+|...|...|
+|(8 + $n$) + $n$|`p_block.receipts[n]`|
+
+[^3]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/15) to make the ordering between Hash and Height in block header the same as the ordering in HotStuff-rs block.
+
+[^4]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/16) to make the order of fields in HotStuff-rs block data the same as the order of fields in block header.
+
+
 ### Transaction
 
 A **transaction** is a digitally signed instruction by an identified party (the "signer") that authorizes the blockchain to execute a sequence of [commands](Runtime.md):
@@ -108,16 +167,16 @@ A **transaction** is a digitally signed instruction by an identified party (the 
 
 **Receipt** is a type alias of `Vec<CommandReceipt>`, and is a compact summary of what happened during the execution of a transaction.
 
-More precisely, a receipt is a sequence of **command receipts**, each of which describe what happened during the transactions' commands:
+Each **command receipt** in a receipt describe what happened during each of the transactions' commands:
 
 |Field|Type|Description|
 |---|---|---|
-|Exit code|`ExitCode`|[An enum](#exitcode) that informs how the command exited.|
+|Exit code|`ExitCode`|[An enum](#exit-code) that informs how the command exited.|
 |Gas used|`u64`|The amount of gas used in executing the command.|
 |Return value|`Vec<u8>`|Generic data with meaning that varies according to the variant of command that created the receipt.|
 |Log|`Vec<Log>`|[Logs](#log) created during the execution of the command.|
 
-#### Exit code 
+#### Exit code
 
 An **exit code** is an enum included in a command receipt that informs how a command exited. A command can exit in one of three ways:
 
@@ -129,9 +188,11 @@ An **exit code** is an enum included in a command receipt that informs how a com
 
 The above descriptions of "operation successful" and "operation failed" are intentionally vague. What "operation successful" and "operation failed" means depends on the variant of the command. This is specified in [runtime](Runtime.md).
 
-### Log
+#### Log
 
-Besides return values, a **log** is another way commands can put generic data about its execution onto the chain. Logs have the benefits over return values that their topics are combined into the block's [log bloom](#block-header), and that a command receipt can have multiple logs.
+Besides return values, a **log** is another way commands can put generic data about its execution onto the blockchain. Logs have two benefits over return values:
+1. A single command receipt can have multiple logs.
+2. Their topics are combined into the block's [log bloom](#block-header).
 
 A log is a structure with fields:
 
@@ -144,7 +205,7 @@ A log is a structure with fields:
 
 Safe replication of the ParallelChain blockchain is enabled by two crucial aspects:
 1. [Delegated Proof of Stake (DPoS)](#delegated-proof-of-stake) defines the "admissions requirements" on parties who want to become validators, and establishes incentive structures that encourages them to behave honestly.
-2. [Byzantine Fault Tolerant State Machine Replication](#state-machine-replication) (BFT SMR) defines the algorithm that validators execute together to grow a consistent blockchain, even in the face of faults. 
+2. [Byzantine Fault Tolerant State Machine Replication (BFT SMR)](#byzantine-fault-tolerant-state-machine-replication) using HotStuff-rs defines the algorithm that validators execute together to grow a consistent blockchain, even in the face of faults. 
 
 The following subsections discuss the two aspects in turn.
 
@@ -169,38 +230,49 @@ Similarly to how only the top $B_{vscap}$ largest pools become part of the valid
 
 Users do the basic operations of DPoS (e.g., creating, staking, unstaking, and withdrawing a deposit) by creating transactions that include [staking commands](Runtime.md#staking-commands). 
 
-## State Machine Replication 
+### Byzantine Fault Tolerant State Machine Replication
 
-The ParallelChain protocol depends on release 0.2.0 of [HotStuff-rs](https://github.com/parallelchain-io/hotstuff_rs) for state machine replication. HotStuff-rs is an implementation of the HotStuff BFT SMR algorithm.
+The ParallelChain protocol uses release **0.2.x** of HotStuff-rs for state machine replication. HotStuff-rs is a Rust implementation of the [HotStuff](https://dl.acm.org/doi/pdf/10.1145/3293611.3331591) BFT SMR algorithm. Replica implementations use HotStuff-rs by implementing the [App](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/app/trait.App.html), [Pacemaker](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/pacemaker/trait.Pacemaker.html), and [Network](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/networking/trait.Network.html) traits.
 
-HotStuff-rs interacts with replica implementations of the ParallelChain protocol through two simple traits: 
-- [App](#app), which encapsulates logic for producing and validating blocks, and
-- [Pacemaker](#pacemaker), which dictates how the logical clocks ("views") of replicas are synchronized, and which validator gets to propose a block at a given view. 
+The [P2P](P2P.md) chapter specifies how replicas should implement Network, while this section is divided into three subsections:
+1. [App](#app) specifies the basic requirements on implementations of App.
+2. [Pacemaker](#pacemaker) specifies the basic requirements on implementations of Pacemaker.
+3. [Timing](#timing) specifies timing requirements on calls to App's `produce_block` and `validate_block` methods.
 
-### App
+#### App
 
-The app trait requires that replica implementations implement two functions: *produce block*, and *validate block*. In the former, leaders produce a block that satisfies the ParallelChain Mainnet specification. In the latter, replicas validate whether a proposed block satisfies the ParallelChain Mainnet specification.
+Implementations of App define logic for producing and validating blocks. App has three methods:
 
-Calls to produce an [epoch boundary blocks](#epoch) additionally return the changes to the validator set between the current epoch and the next epoch.
+- `chain_id` specifies the correct value for the Chain ID fields in HotStuff-rs [progress messages](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/messages/enum.ProgressMessage.html), blocks, and quorum certificates.  If the replica replicates the Mainnet blockchain, this function must return 0.
+- `produce_block` is called by HotStuff-rs when a validator becomes a leader to produce a new block extending an existing branch. The Data field in the response must correspond to the part of a valid block specified in [equivalence between HotStuff-rs blocks and protocol blocks](#equivalence-between-hotstuff-rs-blocks-and-protocol-blocks), and the Data Hash field must be the hash of the Data as specified in [block header](#block-header).
+- `validate_block` is called by HotStuff-rs when a block is received in a proposal or a sync response.
 
-### Pacemaker
+#### Pacemaker
 
-Generally speaking, state machine replication algorithms for the partially synchronous network model (in which network latency may spike during exceptional periods) synchronize the actions of participating replicas by ensuring that they eventually agree on the same "view". A view is a number used to decide which validator in the validator set becomes a *leader* and gets the exclusive right to propose a block during a given period of time. 
+HotStuff-r synchronizes the actions of participating replicas by ensuring that they eventually agree on the same "view". A view is a number used to decide which validator in the validator set becomes a *leader* and gets the exclusive right to propose a block during a given period of time. 
 
 [Pacemakers](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/pacemaker/index.html) ensure view synchronization by specifying functions that decide:
 - how long a replica should stay in a view (*view timeout*) and
 - who should be the leader of a given view (*view leader*).
 
-The ParallelChain protocol uses HotStuff-rs' [default pacemaker](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/pacemaker/struct.DefaultPacemaker.html) with $B_{tbt}$ as the value for minimum view timeout. 
+The ParallelChain protocol uses HotStuff-rs' [default pacemaker](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/pacemaker/struct.DefaultPacemaker.html) with $B_{tbt}$ as the value for *minimum* view timeout. The default pacemaker exponentially increases the view timeout with the number of successive views that fail to form a quorum certificate for a block.
 
 |Formula|Value|Description|
 |---|---|---|
 |$B_{tbt}$|10|Target block time in seconds.|
 |$B_{netlatency}$|2|Expected worst-case network latency.|
 
-$B_{tbt}$ is the number of seconds that a replica spends in a given view to process a block proposed by the designated leader. This includes both the time waiting for a proposal, and the executing the block to validate it.
+For the Mainnet blockchain, the protocol aims to create a block every $B_{tbt}$. In order to achieve this, replicas must abide by specific [timing constraints](#timing) on `produce_block` and `validate_block` calls.
 
-Since $B_{tbt}$ needs to account for executing the block twice (once at the leader to produce it, and then at replicas to validate it) and also network latency, a leader should spend at most $\frac{B_{tbt}}{2} - B_{netlatency}$ seconds producing a block so that replicas will vote for it.
+#### Timing
+
+A single view proceeds in four sequential steps:
+1. The leader calls `produce_block` and produces a block.
+2. The leader broadcasts the block to all replicas.
+3. Replicas receive the block and call `validate_block` on it.
+4. Replicas send a vote for the block to the next leader.
+
+All four steps must take as close to $B_{tbt}$ seconds as possible. Assuming that steps 2 and 4 will each take about $B_{netlatency}$ seconds and splitting the remaining time equally between steps 1 and 3, we get that every call to either `produce_block` or `validate_block` must take as close as possible to $B_{tbt}/2 - B_{netlatency}$ seconds.
 
 ## Deciding limits
 
