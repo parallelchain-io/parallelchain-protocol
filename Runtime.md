@@ -6,7 +6,7 @@
 
 The runtime is the component in the ParallelChain protocol which executes transactions.
 
-At a high level, the runtime is an impure function ($run) that takes in the world state ($ws$), a block context ($bctx$), and a transaction ($txn$) as inputs, mutates the world state, and returns a receipt ($rcp$) as output:
+At a high level, the runtime is an impure function ($run$) that takes in the world state ($ws$), a block context ($bctx$), and a transaction ($txn$) as inputs, mutates the world state, and returns a receipt ($rcp$) as output:
 
 $run$: $(ws, bctx, txn) \rightarrow rcp$.
 
