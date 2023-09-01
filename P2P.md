@@ -16,7 +16,6 @@ This chapter describes P2P in four sections:
 
 ## libp2p
 
-
 P2P is built using [libp2p](https://docs.libp2p.io/concepts/introduction/overview/). libp2p is a set of networking-related protocols initially developed for [IPFS](https://en.wikipedia.org/wiki/InterPlanetary_File_System) that is intended to help build peer-to-peer systems. 
 
 The libp2p protocols used by P2P fall into two categories:
@@ -66,12 +65,14 @@ There are two topics for state machine replication:
 * The "consensus" topic: for HotStuff-rs messages that should be received by every replica.
 * The individual topic: for HotStuff-rs messages that should be received only by specific replica.
 
-Every replica must subscribe to the "consensus" topic, as well as the individual topic corresponding to itself.
+The data type of messages of both topics is `hotstuff_rs::Message`, but each topic will only receive specific variants:
 
-|Topic|Data type|
+|Topic|Variant
 |---|---|
-|"consensus"|Proposal|
-|Base64URL encoding of replica's public address|Vote, or Sync Request, or Sync Response|
+|"consensus"|`ProgressMessage::Proposal`|
+|Base64URL encoding of replica's public address|`ProgressMessage::Vote`, or `SyncMessage::SyncRequest`, or `SyncMessage::SyncResponse`|
+
+Every replica must subscribe to the "consensus" topic, as well as the individual topic corresponding to itself.
 
 #### Mempool
 
@@ -79,11 +80,11 @@ After a transaction is submitted to a replica, it is "pending" until included in
 
 The "mempool" topic is used to replicate a pending transaction across all mempools. This reduces the time a transaction has to wait to become included in a block. When a replica receives a transaction through the `submit_transaction` RPC, it broadcasts it to all other replicas using this topic.
 
-Every replica must subscribe to the "mempool" topic.
-
 |Topic|Data type|
 |---|---|
 |"mempool"|Transaction|
+
+Every replica must subscribe to the "mempool" topic.
 
 #### Transaction Drop Notification[^3]
 
@@ -95,7 +96,7 @@ The "droppedTx" topic is used to notify clients and other software when a transa
 |---|---|
 |"droppedTx"|Transaction Drop Notification|
 
-**Dropped transaction notification** is an enum with two variants:
+**Transaction Drop Notification** is an enum with two variants:
 
 |Variant|Name|Fields|
 |---|---|---|
