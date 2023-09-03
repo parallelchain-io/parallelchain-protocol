@@ -74,19 +74,21 @@ An MPT is a dictionary with three fundamental access operations:
 
 This section defines cost formulas for each fundamental access operation. 
 
-We begin with a brief description of how the cost formulas apply differently to both the singular MPT that stores the root world state, and the multiple MPTs that each store the storage of an account. Then, we spell out the formulas themselves, justifying each formula by considering how each operation is executed in our chosen MPT operation. These formulas reference some named constants. These are listed with their values at the end of the section.
+We begin by specifying of how the "key length" arguments of cost formulas mean different things to both the singular MPT that stores the root world state, and the multiple MPTs that each store the storage of an account. Then, we spell out the formulas themselves, justifying each formula by considering how each operation is executed in our chosen MPT operation. These formulas reference some named constants. These are listed with their values at the end of the section.
 
-### Costing operations on account storage
+### $k$ in cost formulas
 
-The cost formulas specified in this section are all functions that take in the length of the key to be operated on as an argument. 
+The cost formulas specified in this section are all functions that take in the length of the key ($k$) to be operated on as an argument. The value of $k$ depends on whether an MPT operation is done on the root world state MPT or on a storage trie:
+- For an operation on the root MPT, $k = G_{acckeylen}$.
+- For an operation on a key of length $l$ in a storage trie, $k = G_{acckeylen} + l + 32$[^1].
 
-For operations on the root MPT, the key length is always $G_{acckeylen}$, corresponding to the keys of the [account structure](World%20State.md).
-
-For operations on a specific storage MPT, the key length is $G_{acckeylen}$, *plus* the length of the storage key. This simulates an archictecture that has each storage MPT 'attached' as a subtrie of the root MPT on the tuple that stores the account's storage hash.
+The $G_{acckeylen} + l$ term in the formula for $k$ for storage operations simulates an architecture that has each storage MPT 'attached' as a subtrie of the root MPT on the tuple that stores the account's storage hash.
 
 |Formula|Value|Description|
 |---|---|---|
 |$G_{acckeylen}$|33|The length of keys in the root world state MPT.|
+
+[^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/3) to remove the $+ 32$ term.
 
 ### Cost of *get* 
 
