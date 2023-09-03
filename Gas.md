@@ -7,11 +7,11 @@
 The cost of executing a transaction is measured in gas, and counted by updating the $gc$ state variable in the runtime.
 
 We charge gas for 5 categories of operations:
-- [WASM opcode execution](#wasm-opcode-execution-inside-a-contract-call) inside a contract call.
-- [Reading and writing WASM memory from host functions](#host-function-execution-inside-a-contract-call) inside a contract call.
+- [WASM opcode execution](#wasm-opcode-execution-inside-a-contract-call) inside contract calls.
+- [Reading and writing WASM memory from host functions](#host-function-execution-inside-a-contract-call) inside contract calls.
 - [Transaction-related data storage](#transaction-related-data-storage).
 - [World state storage and access](#world-state-storage-and-access).
-- [Cryptographic operations](#cryptographic-operations).
+- [Cryptographic operations](#cryptographic-operations) inside contract calls.
 
 These categories are not an exhaustive enumeration of all of the tasks that a validator does to maintain service for users, but are what we deem to be the tasks that are either most expensive, or most variable, and therefore most vulnerable to abuse by users if they are free.  
 
