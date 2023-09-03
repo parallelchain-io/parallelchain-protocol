@@ -4,16 +4,16 @@
 |---|---|
 |0|0.0|
 
-Contracts are code that are deployed into contract accounts. They have exclusive write access into their account's state.
+Contracts are code written by users that are deployed into contract accounts. They have exclusive write access into their account's storage and can interact with external accounts and each other through function calls. The Contract Binary Interface (CBI) defines the set of requirements that code have to meet in order to be deployed and used as contracts.
 
-This chapter specifies the latest version of the Contract Binary Interface (CBI): version 0.0.
+This chapter specifies **CBI v0.0** (major version 0, minor version 0). The CBI uses semantic versioning, so changes that can cause previously deployable and callable contracts to stop being deployable or callable or otherwise function "incorrectly" incur a major version increase, while all other changes cause a minor version increase.
 
-The CBI is a versioned standard that specifies three things:
+The CBI specifies three things:
 1. [Contract validity](#contract-validity): properties that code must satisfy to be deployed as a contract and be called.
 2. [Host functions](#host-functions): a set of functions that the host process must make available for the guest contract to call.
 3. [Guest functions](#guest-functions): a set of functions that the guest contract must make available for the host process to call.
 
-We begin by quickly defining contract validity. Then, we specify general properties that host function executions must satisfy. Finally, we list all available host functions and guest functions, describing their executions in more detail where there is room for ambiguity.
+We begin by quickly defining contract validity. Then, we specify general properties that host function executions must satisfy. Finally, we list all available host functions, and then guest functions, describing their executions in more detail where there is room for ambiguity.
 
 ## Contract validity
 
@@ -50,7 +50,7 @@ As hard rules:
 2. A host function that *returns* a big value will have a `*_ptr_ptr` argument. To return the big value, the host function will call the guest's `alloc` function and write the big value in the allocation, and then write the start of the allocation in 4 bytes starting from the position specified by `*_ptr_ptr`.
 3. If the big value that the host function returns has a variable length, then the function will return the length.
 
-## List of host functions
+## Host functions
 
 ### World state accessors 
 
