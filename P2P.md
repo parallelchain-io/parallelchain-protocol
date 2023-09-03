@@ -51,13 +51,10 @@ P2P retains most of the default GossipSub configuration as listed [here](https:/
 |---|---|
 |Max transmit size|4 KB|
 |Allow self origin|true|
-|Message ID[^1]|Topic + Base64URL encoding of source + sequence number|
 
-[^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/7#issuecomment-1661990010) to stop overriding Message ID. 
+### Topics[^1]
 
-### Topics[^2]
-
-[^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/7) to create a more logical hierarchy of topics. 
+[^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/7) to create a more logical hierarchy of topics. 
 
 #### State Machine Replication
 
@@ -86,7 +83,7 @@ The "mempool" topic is used to replicate a pending transaction across all mempoo
 
 Every replica must subscribe to the "mempool" topic.
 
-#### Transaction Drop Notification[^3]
+#### Transaction Drop Notification[^2]
 
 A transaction may cease being pending at a replica while it hasn't been included in a block that is then committed. These transactions are said to be "dropped". A transaction may be dropped for a variety of reasons.
 
@@ -111,7 +108,7 @@ The "droppedTx" topic is used to notify clients and other software when a transa
 |Nonce too low|516|
 |Nonce inaccessible|517|
 
-[^3]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/13) to fully flesh out this functionality and move it to the RPC.
+[^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/13) to fully flesh out this functionality and move it to the RPC.
 
 ## Peer Discovery
 
@@ -129,8 +126,8 @@ As with GossipSub, P2P retains most of Kademlia's default configuration (as list
 
 |Overriden configuration|Value|
 |---|---|
-|Protocol names|"/pchain_p2p/v1.0.0"[^4]|
+|Protocol names|"/pchain_p2p/v1.0.0"[^3]|
 |Record filtering|Filter both. Discard all incoming records.|
 
-[^4]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/7) to make protocol name a parameter that is individual to each ParallelChain protocol P2P network instance.
+[^3]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/7) to make protocol name a parameter that is individual to each ParallelChain protocol P2P network instance.
 
