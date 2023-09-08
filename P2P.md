@@ -100,7 +100,7 @@ The "droppedTx" topic is used to notify clients and other software when a transa
 |0|Dropped by Mempool|<ul><li>transaction (`Transaction`)</li><li>reason (`TransactionDropReason`)</li></ul>|
 |1|Dropped by Executor|<ul><li>transaction (`CryptoHash`)</li><li>reason (`TransactionDropReason`)</li></ul>|
 
-**Transaction drop reason** is a type alias for `u64`. It has three possible values:
+**Transaction drop reason** is a type alias for `u16`. It has three possible values:
 
 |Name|Value|
 |---|---|
