@@ -52,12 +52,14 @@ A **block header** summarizes the data of a block, as well as contain metadata u
 |Timestamp|`u64`|A unix timestamp. The Timestamp on a block must be strictly greater than the Timestamp on its parent, and strictly smaller than the process' (replica or client) local time.|
 |Base Fee Per Gas|`u64`|The (inclusive) minimum number of grays that a transaction in must pay for every [gas](Runtime.md#gas-used) used to be included in this block. How this value is decided is specified in [base fee formula](#base-fee-formula).|
 |Gas used|`u64`|The gas used to store and execute all of the block's transactions. This is exactly the sum of: <ol><li>The $G_{txincl}$ of every transaction in the block.</li> <li>The value in the gas used field of every command receipt in the block.|
-|Transactions Hash</li></ol>|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' transactions, constructed using [rs_merkle](https://docs.rs/rs_merkle/latest/rs_merkle/). Each leaf is a SHA256 hash over a transaction (not just the Hash field of a transaction), and each transaction are placed in the tree in the order they appear in the block.|
+|Transactions Hash</li></ol>|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' transactions, constructed using [rs_merkle](https://docs.rs/rs_merkle/latest/rs_merkle/). Each leaf is a SHA256 hash over a transaction (not just the Hash field of a transaction)[^2], and each transaction are placed in the tree in the order they appear in the block.|
 |Receipts Hash|`CryptoHash`|The root hash of the SHA256 binary merkle tree over the blocks' receipts. This is similar to transactions hash, but each leaf is the SHA256 hash of a receipt's bytes encoding.|
 |State Hash|`CryptoHash`|The root hash of the [world state](World%20State.md) after executing this block.
 |Logs bloom|`[u8; 256]`|A bloom filter generated over all logs in the block's receipts. This starts as a 2048-bits ($2^{11}$ bits) array of all zeros, then is populated using the following procedure: for every log, SHA256-hash its topic, take the first 11 bits of each of the three least-significant pairs of bytes in the digest, and then use each of these 11 bits to index into a bit in the log bloom and set it to 1.|
 
 [^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/16) to make the order of fields in the pre-image of data hash in line with the order of fields in block header.
+
+[^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/17) to have each leaf of the merkle tree used to compute a block's transactions hash contain the hash field of a transaction, instead of the SHA256 hash over an entire transaction.
 
 #### Maximum gas used
 
