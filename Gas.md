@@ -7,8 +7,8 @@
 The cost of executing a transaction is measured in gas, and counted by updating the $gc$ state variable in the runtime.
 
 We charge gas for 5 categories of operations:
-- [WASM opcode execution](#wasm-opcode-execution-inside-a-contract-call) inside contract calls.
-- [Reading and writing WASM memory from host functions](#host-function-execution-inside-a-contract-call) inside contract calls.
+- [WASM opcode execution](#wasm-opcode-execution) inside contract calls.
+- [Reading and writing WASM memory from host functions](#accessing-wasm-memory-from-host-functions) inside contract calls.
 - [Transaction-related data storage](#transaction-related-data-storage).
 - [World state storage and access](#world-state-storage-and-access).
 - [Cryptographic operations](#cryptographic-operations) inside contract calls.
@@ -54,16 +54,31 @@ Transaction-related data includes every byte in the Borsh-serialization of trans
 |---|---|---|---|
 |$G_{txdata}$|30|Cost of including 1 byte of data in a Block as part of a transaction or a receipt.|$G_{txdatanonzero} = 16$|
 
-The cost of storing a transaction and the fixed-sized component of its receipt ($G_{minrcpsize}) is known before the transaction is executed and charged in the transaction's [inclusion cost](#transaction-inclusion-cost).
+The cost of storing a transaction and the fixed-sized component of its receipt is known before the transaction is charged in the transaction's [inclusion cost](#transaction-inclusion-cost). On the other hand, the size of the dynamic-sized contents of command receipts, namely return values and logs, are dynamically charged during execution.
+
+## Transaction inclusion cost
+
+An amount of gas called the "transaction inclusion cost" is charged before every other step in a transaction's execution by initializing the [$gc$ Runtime state variable](Runtime.md#state-variables) to it:
 
 |Formula|Value|Description|
 |---|---|---|
-|$G_{minrcpsize}(cmds)$|$4 + cmds \times G_{cmdrcpminsize}$|Serialized size of a receipt containing $cmds$ minimum-sized command receipts.|
-|$G_{mincmdrcpsize}$|$17$|Serialized size of a minimum-size command receipt.|
+|$G_{txincl}(txn)$|$[serialize(txn).len() + G_{minrcpsize}(txn.commands)] \times G_{txdata} + 5 \times [G_{sget}(G_{acckeylen}, 8) + G_{sset}(G_{acckeylen}, 8, 8)]$|The transaction inclusion cost of a transaction $txn$.| 
 
-On the other hand, the size of the dynamic-sized contents of command receipts, namely return values and logs, can only be determined during execution:
+The above formula consists of two terms that are added together:
+1. The first term accounts for storing the transaction and its "minimal-size" receipt.
+2. The second term accounts for getting and then setting 5 pair of keys in the Accounts Trie in the pre-charge and charge execution phases:
+    1. The signer's nonce.
+    2. The signer's balance, in the pre-charge phase.
+    3. The signer's balance again, in the charge phase.
+    4. The proposer's balance.
+    5. The treasury's balance.
 
-A nuance with return values is that the cost of writing the length of the return value--return values are `Vec<u8>`--is already charged in writing a minimum-size command receipt, and so only the cost of writing the contents of the vector is charged when a command returns a value. 
+The minimal-size receipt of any transaction with $n$ commands is a `Vec<CommandReceipt>` containing $n$ identical command receipts, each with an empty return value and log:
+
+|Formula|Value|Description|
+|---|---|---|
+|$G_{minrcpsize}(n)$|$4 + G_{cmdrcpminsize}$|Size of a receipt containing $n$ minimal-sized command receipt.|
+|$G_{mincmdrcpsize}$|$17$|Size of a single minimal-sized command receipt.|
 
 ## World state storage and access
 
@@ -183,23 +198,7 @@ The second part:
 5. Compile the Rust binary to a wasm32-unknown-unknown target with `--release` optimizations.
 6. Execute the WASM module with varying message lengths, gas metering opcodes according to our schedule.
 
-We found that the base cost of verifying an Ed25519 signature in a contract is 7,000,000. Applying the 5x faster estimation from before, this led us to setting a base cost of 1,400,000 in $G_{wvrfy25519}$. The $len * 16$ formula comes from the fact that Ed25519 verification involves a SHA512 as a preparation step.
-
-## Transaction inclusion cost
-
-To be included in the blockchain, a transaction must, at the minimum, be able to pay for the following operations:
-- $G_{txdata}$ for storing the transaction in a block.
-- $G_{txdata}$ for storing a minimum-sized Receipt of length `transaction.commands.len()` in a block.
-- $G_{sget}$ and $G_{sset}$ for getting, and setting these 5 keys, each with values of length 8:
-    - The signer's nonce.
-    - The signer's balance, once in the [pre-charge](Runtime.md#pre-charge) phase.
-    - The signer's balance again, in the [charge](Runtime.md#charge) phase.
-    - The proposer's balance.
-    - The treasury's balance.
-
-|Formula|Value|Description|
-|---|---|---|
-|$G_{txincl}(txn)$|$[serialize(txn).len() + G_{minrcpsize}(txn.commands)] \times G_{txdata} + 5 \times [G_{sget}(8) + G_{sset}(8)]$|Cost of including a transaction $txn$ in the blockchain that is borne at the beginning of its execution.| 
+We found that the base cost of verifying an Ed25519 signature in a contract is 7,000,000. Applying the 5x faster estimation from before, this led us to setting a base cost of 1,400,000 in $G_{wvrfy25519}$. The $len * 16$ formula comes from the fact that Ed25519 verification involves a SHA512 as a preparation step. 
 
 ## Appendix: WASM opcode gas schedule
 
