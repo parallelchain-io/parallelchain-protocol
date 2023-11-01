@@ -77,7 +77,7 @@ The minimal-size receipt of any transaction with $n$ commands is a `Vec<CommandR
 
 |Formula|Value|Description|
 |---|---|---|
-|$G_{minrcpsize}(n)$|$4 + G_{cmdrcpminsize}$|Size of a receipt containing $n$ minimal-sized command receipt.|
+|$G_{minrcpsize}(n)$|$4 + n \times G_{cmdrcpminsize}$|Size of a receipt containing $n$ minimal-sized command receipt.|
 |$G_{mincmdrcpsize}$|$17$|Size of a single minimal-sized command receipt.|
 
 ## World state storage and access
