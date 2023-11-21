@@ -97,7 +97,7 @@ Or equivalently, using the following formula:
 
 |Symbol|Formula|Description|
 |---|---|---|
-|$W_{accfieldkey}(a, n)$|$a + 1u8 + n$|The MPT key in the accounts trie that stores the field with field number $n$ of the account with address $a$.|
+|$W_{at, mptkey}(a, n)$|$a + 1u8 + n$|The MPT key in the accounts trie that stores the field with field number $n$ of the account with address $a$.|
 
 [^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/4) to remove the visibility byte from MPT keys.
 
@@ -122,7 +122,7 @@ Or equivalently, using the following formula:
 
 |Symbol|Formula|Description|
 |---|---|---|
-|$W_{storagekey}(k)$|$0u8 + n$|The MPT key in the storage trie that stores a key $k$ provided through a CBI host function call or any other mechanism.|
+|$W_{st, mptkey}(k)$|$0u8 + n$|The MPT key in the storage trie that stores a key $k$ provided through a CBI host function call or any other mechanism.|
 
 Keys used to store fields and collections in network account storage are also formed using $W_{storagekey}$, but with $k$ taking the specific values specified in the next section.
 
