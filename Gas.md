@@ -83,41 +83,87 @@ The minimal-size receipt of any transaction with $n$ commands is a `Vec<CommandR
 ## World state storage and access
 
 An MPT is a dictionary with three fundamental access operations:
-1. *set*: create a mapping between a variable length and a variable length value. Setting a key to an empty value is equivalent to deleting a key.
-2. *get*: get the value mapped to a key.
-3. *contains*: check whether a key is mapped to a value.
+1. **set**: create a mapping between a variable length and a variable length value. Setting a key to an empty value is equivalent to deleting a key.
+2. **get**: get the value mapped to a key.
+3. **contains**: check whether a key is mapped to a value.
 
-This section defines cost formulas for each fundamental access operation. 
+This section defines cost formulas for each fundamental access operation first on the Accounts Trie, and then a Storage Trie, and finally on a generic MPT.
 
-We begin by specifying of how the "key length" arguments of cost formulas mean different things to both the singular MPT that stores the root world state, and the multiple MPTs that each store the storage of an account. Then, we spell out the formulas themselves, justifying each formula by considering how each operation is executed in our chosen MPT operation. These formulas reference some named constants. These are listed with their values at the end of the section.
+### Accounts Trie operations
 
-### $k$ in cost formulas
+Getting, setting, and checking for the existence of a key-value pair in the Accounts Trie simply entails doing the corresponding operation in the dedicated Accounts Trie MPT.
 
-The cost formulas specified in this section are all functions that take in the length of the key ($k$) to be operated on as an argument. The value of $k$ depends on whether an MPT operation is done on the root world state MPT or on a storage trie:
-- For an operation on the root MPT, $k = G_{acckeylen}$.
-- For an operation on a key of length $l$ in a storage trie, $k = G_{acckeylen} + l + 32$[^1].
+#### Get
 
-The $G_{acckeylen} + l$ term in the formula for $k$ for storage operations simulates an architecture that has each storage MPT 'attached' as a subtrie of the root MPT on the tuple that stores the account's storage hash.
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{at,get}(k, a)$|$G_{mpt,get}(k, a)$|Cost of getting a key of length $k$ that is currently mapped to a value of length $a$ from the Accounts Trie.|
+
+Getting contract code from the Accounts Trie is discounted:
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{at, getcontractdisc}$|50%|Proportion of $G_{at, get}$ which is discounted if the tuple contains a contract.|None|
+
+#### Set
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{at,set}(k, a, b)$|$G_{mpt,set}(k, a, b)$|Cost of setting a key of length $k$ to a value of length $b$ in the Accounts Trie given that the key is currently set to a value of length $a$.|
+
+#### Contains
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{at,contains}(k)$|$G_{at,get}(k, 0)$|Cost of checking whether a key with length $l$ is set to a value in the Accounts Trie.|
+
+### Storage Trie operations
+
+The cost of getting, setting, or checking for the existence of a key-value pair in a storage trie where key is of length $k$ is equivalent to the cost of doing the same operation on an imaginary "combined MPT" with a key of length $G_{at, klen} + k + 32$. Where $G_{at, klen}$:
 
 |Formula|Value|Description|
 |---|---|---|
-|$G_{acckeylen}$|33|The length of keys in the root world state MPT.|
+|$G_{at, keylen}$|33|The length of Accounts Trie keys.|
+
+The first two terms of the key in the combined MPT simulates an architecture that has each storage MPT 'attached' as a subtrie of the Accounts Trie on the tuple that stores the account's storage hash, while the $+ 32$ term is there for legacy reasons[^1].
 
 [^1]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/3) to remove the $+ 32$ term.
 
-### Cost of *get* 
+#### Get
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{st,get}(k, a)$|$G_{mpt,get}(G_{at, keylen} + k + 32, a)$|Cost of getting a key of length $k$ that is currently mapped to a value of length $a$ from a Storage Trie.|
+
+#### Set
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{st,set}(k, a, b)$|$G_{mpt,set}(G_{at, keylen} + k + 32, a, b)$|Cost of setting a key of length $k$ to a value of length $b$ in a Storage Trie given that the key is currently set to a value of length $a$.|
+
+##### Contains
+
+|Symbol|Formula|Description|
+|---|---|---|
+|$G_{st,contains}(k)$|$G_{st,get}(k, 0)$|Cost of checking whether a key with length $l$ is set to a value a Storage Trie.|
+
+### MPT operations
+
+To decide the cost of each MPT operation, we imagine how a simple implementation of an MPT may implement the operation.
+
+#### Get
 
 To get a key of length $k$ which is mapped to a value of length $a$:
 1. Traverse down the MPT until we reach a matching node or dead end.
 2. Read and return its value, or none, if we reached a dead end.
 
-|Name|Formula|Description|
+|Symbol|Formula|Description|
 |---|---|---|
-|$G_{sget}(k, a)$|$G_{sget1}(k) + G_{sget2}(a)$|Cost of getting a key of length $k$ which is mapped to a value of length $a$.|
-|$G_{sget1}(k)$|$k \times G_{straverse}$|Cost of step 1 of get.|
-|$G_{sget2}(a)$|$a \times G_{sread}$|Cost of step 2 of get.|
+|$G_{mpt,get,v2}(k, a)$|$G_{mpt,get1}(k) + G_{mpt,get2}(a)$|Cost of getting a key of length $k$ that is currently is mapped to a value of length $a$ from an MPT.|
+|$G_{mpt,get1}(k)$|$k \times G_{mpt, traverse}$|Cost of step 1 of get.|
+|$G_{mpt,get2}(a)$|$a \times G_{mpt, read}$|Cost of step 2 of get.|
 
-### Cost of *set*
+#### Set
 
 To set a key of length $k$, currently set to a value of length $a$, to a new value of a set $b$:
 1. Get the key.
@@ -125,39 +171,31 @@ To set a key of length $k$, currently set to a value of length $a$, to a new val
 3. Write a new value.
 4. Recompute node hashes until the root.
 
-|Name|Formula|Description|
+|Symbol|Formula|Description|
 |---|---|---|
-|$G_{sset}(k, a, b)$|$G_{sset1}(k, a) + G_{sset2}(k, a, b) + G_{sset3}(b) + G_{sset4}(k)$|Cost of seting a key of length $k$, currently set to a value of length $a$, to a new value of a set $b$.|
-|$G_{sset1}$|$G_{sget}$|Cost of step 1 of set.|
-|$G_{sset2}(k, a, b)$|Specified in the paragraph after the table.|Cost of step 2 of set.|
-|$G_{sset3}(b)$|$b \times G_{swrite}$|Cost of step 3 of set.|
-|$G_{sset4}(k)$|$k \times G_{srehash}$|Cost of step 4 of set.|
+|$G_{mpt,set}(k, a, b)$|$G_{mpt, set1}(k, a) + G_{mpt, set2}(k, a, b) + G_{mpt, set3}(b) + G_{mpt, set4}(k)$|Cost of setting a key of length $k$ to a value of length $b$ in an MPT given that the key is currently set to a value of length $a$.|
+|$G_{mpt,set1}(k, a)$|$G_{mpt,get}(k, a)$|Cost of step 1 of set.|
+|$G_{mpt,set2}(k, a, b)$|Given in the paragraph below this table.|Cost of step 2 of set.|
+|$G_{mpt,set3}(b)$|$b \times G_{mpt, write}$|Cost of step 3 of set.|
+|$G_{mpt,set4}(k)$|$k \times G_{mpt, rehash}$|Cost of step 4 of set.|
 
 $$
-G_{sset2}(k, a, b) = -1 \times \begin{cases} 
-a \times G_{swrite} \times G_{srefund} & \text{if $a \ge 0$, $b > 0$}, \\
-(k + a) \times G_{swrite} \times G_{srefund} & \text{if $a > 0$, $b = 0$}, \\
+G_{mpt, set2}(k, a, b) = -1 \times \begin{cases} 
+a \times G_{mpt, write} \times G_{mpt, refund} & \text{if $a \ge 0$, $b > 0$}, \\
+(k + a) \times G_{mpt, write} \times G_{mpt, refund} & \text{if $a > 0$, $b = 0$}, \\
 0 & \text{if $a = 0$, $b = 0$}, \\
 \end{cases} 
 $$
 
-### Cost of *contains*
-
-|Name|Formula|Description|
-|---|---|---|
-|$G_{scontains}(k)$|$G_{sget}(k, 0)$|Cost of contains.|
-
-### Constants
+#### Constants
 
 |Formula|Value|Description|Ethereum counterpart|
 |---|---|---|---|
-|$G_{swrite}$|2500|Cost of writing a single byte into the world state.|$G_{sset} = 20000$ for storing 32 bytes, so $625$ per byte.|
-|$G_{sread}$|50|Cost of reading a single byte from the world state.|$G_{coldsload} = 2100$ for loading 32 bytes, so roughly $65$ per byte.| 
-|$G_{straverse}$|20|Cost of traversing 1 byte (2 nibbles) down an MPT.|None|
-|$G_{srehash}$|130|Cost of traversing 1 byte up (2 nibbles) and recomputing the SHA256 hashes of 2 nodes in an MPT after it or one of its descendants is changed.|None|
-|$G_{srefund}$|50%|Proportion of the cost of writing a tuple into an MPT that is refunded when that tuple is re-set or deleted.|$R_{sclear} = 15000$, which ends up being [50%](https://ethereum.stackexchange.com/a/40972).|
-|$G_{sgetcontractdisc}$|50%|Proportion of $G_{sset}$ which is discounted if the tuple contains a contract.|None|
-
+|$G_{mpt, write}$|2500|Cost of writing a single byte into an the backing storage of an MPT.|$G_{sset} = 20000$ for storing 32 bytes, so $625$ per byte.|
+|$G_{mpt, read}$|50|Cost of reading a single byte from the backing storage of an MPT.|$G_{coldsload} = 2100$ for loading 32 bytes, so roughly $65$ per byte.| 
+|$G_{mpt, traverse}$|20|Cost of traversing 1 byte (2 nibbles) down an MPT.|None|
+|$G_{mpt, rehash}$|130|Cost of traversing 1 byte up (2 nibbles) and recomputing the SHA256 hashes of 2 nodes in an MPT after it or one of its descendants is changed.|None|
+|$G_{mpt, refund}$|50%|Proportion of the cost of writing a tuple into an MPT that is refunded when that tuple is re-set or deleted.|$R_{sclear} = 15000$, which ends up being [50%](https://ethereum.stackexchange.com/a/40972).|
 
 ## Cryptographic operations  
 
