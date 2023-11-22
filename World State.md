@@ -124,7 +124,7 @@ Or equivalently, using the following formula:
 |---|---|---|
 |$W_{st, mptkey}(k)$|$0u8 + n$|The MPT key in the storage trie that stores a key $k$ provided through a CBI host function call or any other mechanism.|
 
-Keys used to store fields and collections in network account storage are also formed using $W_{storagekey}$, but with $k$ taking the specific values specified in the next section.
+Keys used to store fields in network account storage are also formed using $W_{storagekey}$, but with $k$ taking the specific values specified in the next section.
 
 ## Network Account Storage
 
@@ -134,11 +134,11 @@ This section is organized into four subsections:
 1. [Network Account Storage Fields](#network-account-storage-fields) specify the top-level fields stored in network account storage.
 2. [Network Account Storage Pseudo-Types](#network-account-storage-pseudo-types) specify the "inner fields" of the "pseudo-types" stored in network account storage fields.
 3. [Network Account Storage Storage Trie keys](#network-account-storage-storage-trie-keys) specify how the contents of network account storage are stored in storage key-value pairs.
-4. [Index Heap Operations](#index-heap-operations) specify the sequence flows of operations on the "Index Heap" collection.
+4. [Index Heap Operations](#index-heap-operations) specify the sequence flows of operations on the "Index Heap" pseudo-type.
 
 ### Network Account Storage Fields
 
-Network account storage consists of 6 numbered fields. Fields 0 to 4 contain pseudo-types called "collections", which are specified in the next section. The following table lists the 6 fields:
+Network account storage consists of 6 numbered fields. Fields 0 to 4 contain "pseudo-types", which are specified in the next section. The following table lists the 6 fields:
 
 |Field number|Field|Pseudo-Type/Type|Description|
 |---|---|---|---|
@@ -198,7 +198,7 @@ Every deposit is associated with two fields in network account storage:
 
 #### Mapping (`T -> U`)
 
-Mappings are pseudo-types with as many fields as there are unique instances of the key type `T`, each field storing the type/collection `U`. For example, the pseudo-type `PublicAddress -> Deposit` has $2^{256}$ fields, since there are $2^{256}$ possible public addresses.
+Mappings are pseudo-types with as many fields as there are unique instances of the key type `T`, each field storing the type/pseudo-type `U`. For example, the pseudo-type `PublicAddress -> Deposit` has $2^{256}$ fields, since there are $2^{256}$ possible public addresses.
 
 #### Index Heap (`IndexHeap<Item, Capacity>`)
 
@@ -237,11 +237,11 @@ Even though these sequences flows are not necessarily the most efficient way to 
 
 The sequence flows in this section are written with the following conventions:
 - Index Heap is modelled as a type, and its operations are modelled as methods taking a `&mut self` receiver.
-- Collections are also likewise modelled as types.
+- Other pseudo-types are also likewise modelled as types.
 - "Get" accesses on a field are denoted with function call syntax and returns an `Option<T>` (e.g., `let _: Option<u32> = self.length()`) when the field could be empty at the point of access, and with indexing syntax (e.g., `let _: Self::Item = self.index_to_item[index]`) when the field will never be empty at the point of access.
 - "Set" accesses on a field are always denoted using indexing syntax. (e.g., `self.index_to_item[index] = item`).
-- "Get" accesses on a collection gets all of the collection's inner fields except inner Index Heaps (e.g., `let _: Pool = self.index_to_item[index]` gets $32 + 8 + 1 + (1 + 32 + 8) = 82$ bytes, the terms in the addition corresponding to the pool fields "operator", "power", "commission rate", and "own stake" respectively).
-- Likewise, "set" accesses on a collection sets all of the collection's inner fields except inner Index Heaps.
+- "Get" accesses on a pseudo-type gets all of the pseudo-type's inner fields except inner Index Heaps (e.g., `let _: Pool = self.index_to_item[index]` gets $32 + 8 + 1 + (1 + 32 + 8) = 82$ bytes, the terms in the addition corresponding to the pool fields "operator", "power", "commission rate", and "own stake" respectively).
+- Likewise, "set" accesses on a pseudo-type sets all of the pseudo-type's inner fields except inner Index Heaps.
 
 ##### Insert-and-Extract
 
