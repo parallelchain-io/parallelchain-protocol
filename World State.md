@@ -223,7 +223,7 @@ Index heaps have three fields:
 
 Each "type"-field in network account storage (i.e., a field that contains an instance of a type, instead of a pseudo-type) corresponds to a single key-value pair in the network account's storage trie. For each pair, the key is determined by the sequence of "pseudo-type"-fields that contain the type-field.
 
-For example, the storage trie key of the power field of a pool key with key address $k$ in the next validator set is: `2u8` + `2u8`, $k$ + `1u8`, where the terms in the addition are, in order:
+For example, the storage trie key of the power field of a pool key with key address $k$ in the next validator set is: `2u8` + `2u8` + $k$ + `1u8`, where the terms in the addition are, in order:
 1. The field number of the next validator set field in network account storage.
 2. The field number of the index to item field in the index-heap pseudo-type.
 3. The field number of the key address in the mapping pseudo-type.
@@ -236,7 +236,7 @@ This section defines the sequence flows of operations on Index Heaps for use in 
 Even though these sequences flows are not necessarily the most efficient way to implement the business logic, it is important to follow them because in particular, different sequences of world state operations will cost different amounts of gas.
 
 The sequence flows in this section are written with the following conventions:
-- Network account storage is modelled as a type, and its operations are modelled as methods taking a `&mut self` receiver.
+- Index Heap is modelled as a type, and its operations are modelled as methods taking a `&mut self` receiver.
 - Collections are also likewise modelled as types.
 - "Get" accesses on a field are denoted with function call syntax and returns an `Option<T>` (e.g., `let _: Option<u32> = self.length()`) when the field could be empty at the point of access, and with indexing syntax (e.g., `let _: Self::Item = self.index_to_item[index]`) when the field will never be empty at the point of access.
 - "Set" accesses on a field are always denoted using indexing syntax. (e.g., `self.index_to_item[index] = item`).
