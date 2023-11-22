@@ -519,7 +519,7 @@ Before the genesis block (the block with block height 0) is executed, the World 
 
 Three accounts are assigned an initial balance:
 
-|Account Address|Balance|
+|Account Address (Base 64)|Balance|
 |---|---|
 |$W_{treasuryaddr}$|3047500000000000|
 |"okncC7Xu5z0soYnDr-BsKnzPLnXLVDycvKAupN47cIc"|375000000000000|
@@ -539,7 +539,7 @@ Network account storage is initialized to have 10 validators by setting the foll
 
 The operator addresses of the genesis validators, as well as their initial deposit balance, pool own stake, pool commission rate, and deposit "automatically stake rewards?" setting are specified in the table below:
 
-|Operator|Deposit Balance/Power|Commission Rate|Automatically stake rewards?|
+|Operator Address (Base 64)|Deposit Balance/Power|Commission Rate|Automatically stake rewards?|
 |---|---|---|---|
 |"IiJoIUHLuuBUHyGHU2_rGSyoHBZ3LQNqI5dgo6ff0k4"|10000000000000|0|False|
 |"9NK8lCsbuJtcnLxnXzmPH12RnfOOhDCLxvf5hqa6UWk"|10000000000000|0|False|
