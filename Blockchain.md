@@ -80,20 +80,20 @@ The base fee per gas of a block is a function of the parent's base fee per gas, 
 The specific formula for a block's base fee per gas is:
 
 $$
-B_{basefee}(pbf,pgu) =  max\left(B_{minbasefee},\ pbf + B_{basefeedelta}(pbf,pgu)\right)
+B_{basefee}(pbfpg,pgu) = max\left(B_{minbasefee},\ pbf + B_{basefeedelta}(pbfpg,pgu)\right)
 $$
 
-where $pbf$ is the parent's base fee per gas, and $pgu$ is the parent's gas used. $B_{basefeedelta}$ is:
+where $pbfpg$ is the parent's base fee per gas, and $pgu$ is the parent's gas used. $B_{basefeedelta}$ is:
 
 $$
-B_{basefeedelta}(pbf, pgu) = max\left(1,\ \frac{pbf \times \left(pgu - B_{tgtgasused}\right)}{8 \times B_{tgtgasused}}\right) 
+B_{basefeedelta}(pbfpg, pgu) = \begin{cases} 0 & \text{if }pgu = B_{tgtgasused} \\
+max(1, \frac{pbfpg \times \left(pgu - B_{tgtgasused}\right)}{8 \times B_{tgtgasused}}) & \text{if }pgu > B_{tgtgasused} \\
+min(-1, \frac{pbfpg \times \left(pgu - B_{tgtgasused}\right)}{8 \times B_{tgtgasused}}) & \text{if }pgu < B_{tgtgasused} \end{cases}
 $$
 
-The intended result of the base fee formula is to use pricing to adjust demand such that blocks are half-full in the steady state. 
+The intended result of the base fee per gas formula is to use pricing to adjust demand such that blocks are half-full in the steady state. 
 
-This mechanism is nearly identical to [Ethereum's](https://github.com/paradigmxyz/reth/blob/8987f4e8be60b92d596acc21a2b27ecc4ede9f1a/crates/consensus/common/src/validation.rs#L245) in all respects except for two:
-1. $B_{basefeedelta}$ is not piecewise. This is intentional.
-2. The minimum base fee per gas is 8 instead of 7. This difference is a design oversight, and one that we intend to rectify in the next protocol major version.
+This mechanism is nearly identical to [Ethereum's](https://github.com/paradigmxyz/reth/blob/8987f4e8be60b92d596acc21a2b27ecc4ede9f1a/crates/consensus/common/src/validation.rs#L245) in all respects except that the minimum base fee per gas is 8 instead of 7. This difference is a design oversight, and one that we intend to rectify in the next protocol major version.
 
 ### HotStuff-rs Block
 
