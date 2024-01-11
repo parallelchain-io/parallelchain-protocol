@@ -116,7 +116,7 @@ Reject is triggered if the transaction does not satisfy any of the checks made i
 #### Next Phase
 
 Next Phase is triggered after an iteration of the commands phase is fully executed. The following sequence of events occur when next phase is triggered:
-1. A command receipt is appended to the `rcp` state variable containing *Operation Successful* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+1. A command receipt is appended to the `rcp` state variable containing *Operation Successful* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, and `rval` in its Return Value field.
 2. `logs` and `rval` is set to their initial values.
 3. `sg` is set to `gc`.
 
@@ -126,7 +126,7 @@ Control flow then passes to the next iteration of the commands phase (if there i
 
 Abort is triggered if some command-specific error occurs during an iteration of the commands phase (e.g., if a [Set Pool Settings](#set-pool-settings) command tries to set the commission rate of a pool to be greater than 100%). The following sequence of events occur when abort is triggered:
 1. All changes to `nws` done in the current and preceding *commands* are reverted without increasing `gc` (note that the changes done in the pre-charge phase are *not* reverted).
-2. A command receipt is appended to the `rcp` state variable containing *Operation Failed* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+2. A command receipt is appended to the `rcp` state variable containing *Operation Failed* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, and `rval` in its Return Value field.
 
 Execution then passes directly to the charge phase.
 
@@ -134,7 +134,7 @@ Execution then passes directly to the charge phase.
 
 Gas Exhausted is triggered automatically upon `gc` exceeding the transaction’s gas limit. The following sequence of events occur when gas exhausted is triggered:
 1. All changes to `nws` done in the current and preceding *commands* are reverted without increasing `gc` (note that the changes done in the pre-charge phase are *not* reverted).
-2. A command receipt is appended to the `rcp` state variable containing *Gas Exhausted* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+2. A command receipt is appended to the `rcp` state variable containing *Gas Exhausted* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, and `rval` in its Return Value field.
 
 Control flow then passes directly to the charge phase.
 
