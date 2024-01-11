@@ -1,8 +1,4 @@
-# Runtime
-
-|Revision no.|
-|---|
-|0|
+# Runtime (V1)
 
 The Runtime is the component in the ParallelChain protocol which executes transactions. 
 
@@ -11,8 +7,8 @@ The primary interface that the runtime provides to the other components of the P
 This chapter is organized into four sections:
 1. [Transition function (V1)](#transition-function-(v1)) specifies the *interface* of the transition function, i.e., its input parameters and output parameters.
 2. [Execution model of the transition function](#execution-model-of-the-transition-function) introduces the concepts that will be used in the latter two sections to specify the *execution* of the transition function.
-3. [Common phases] specifies the sequence flow of executing the two "phases" (pre-charge and charge) that are common in the execution of all transactions.
-4. [Commands] specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
+3. [Common phases](#common-phases) specifies the sequence flow of executing the two "phases" (pre-charge and charge) that are common in the execution of all transactions.
+4. [Commands](#commands) specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
 
 ## Transition Function (V1)
 
