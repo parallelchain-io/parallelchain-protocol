@@ -4,96 +4,155 @@
 |---|
 |0|
 
-The runtime is the component in the ParallelChain protocol which executes transactions.
+The Runtime is the component in the ParallelChain protocol which executes transactions. 
 
-At a high level, the runtime is an impure function ($run$) that takes in the world state ($ws$), a block context ($bctx$), and a transaction ($txn$) as inputs, mutates the world state, and returns a receipt ($rcp$) as output:
+The primary interface that the runtime provides to the other components of the ParallelChain protocol is a function called the **Transition Function** that deterministically executes transactions. Execution of the transition function proceeds through three phases: Pre-Charge, Commands, and Charge. The sequence flow of the pre-charge and charge phases are common to all transactions, while the sequence flow of the commands phase varies according to the composition of a transaction's vector of commands. Besides specifying the execution of the transition function, this chapter also specifies the variants of the [Commands enum](Blockchain.md#Transaction) introduced in the Blockchain chapter.
 
-$run$: $(ws, bctx, txn) \rightarrow rcp$.
+This chapter is organized into four sections:
+1. [Transition function (V1)](#transition-function-(v1)) specifies the *interface* of the transition function, i.e., its input parameters and output parameters.
+2. [Execution model of the transition function](#execution-model-of-the-transition-function) introduces the concepts that will be used in the latter two sections to specify the *execution* of the transition function.
+3. [Common phases] specifies the sequence flow of executing the two "phases" (pre-charge and charge) that are common in the execution of all transactions.
+4. [Commands] specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
 
-The run function proceeds in three phases, which are called “pre-charge”, “commands”, and “charge”. The first and last phases are common to all transactions, while the commands phase is specific to the sequence of commands in a particular transaction. The execution of commands is where transactions become really useful, so the bulk of this document is dedicated to specifying the commands phase. 
+## Transition Function (V1)
 
-This chapter specifies the runtime in three sections:
-1. The [first section](#execution-model) introduces the basic terminology, symbols, and control flow concepts that we will use to specify the run function.
-2. The [second section](#common-phases) specifies the sequence flow of the run function through the pre-charge and charge phases.
-3. The [third section](#commands) specifies the variants of the commands enum and the sequence flow of transaction execution through the commands phase.
+The Transition Function is a pure function that takes in three input parameters and returns two output parameters. The signature of the transition function can be represented symbolically as follows:
 
-## Execution model
+**```transition(cws, txn, bctx) -> (nws, rcp)```**
 
-This section introduces the basic terminology, symbols, and control flow concepts that we will use to specify the run function:
+The input parameters and return values of the transition function are specified in the following two subsections:
 
-1. The [first subsection](#state-variables) lists variables that we keep track of through a transaction execution, including inputs and output, and internal variables.
-2. The [second subsection](#control-flow) describes how execution jumps between the three phases (both in the normal case, and in exceptional cases).
-3. The [third subsection](#gas-counting) specifies gas counting.
-4. The [fourth subsection](#sequence-flow-pseudocode) describes the pseudocode that we use throuhgout this document to specify sequence flows.
+### Input parameters
 
-### State variables 
-
-Transaction execution takes three inputs:
-
-|Name|Type|Description|
+|Input parameter|Type|Description|
 |---|---|---|
-|$txn$|`Transaction`|The transaction to be executed.|
-|$ws$|N/A|The world state after executing all previous transactions.|
-|$bctx$|N/A|The fields of the block which the transaction is being considered for inclusion into that are available before execution. This includes block height, justify, chain ID, proposer, timestamp, and base fee per gas.| 
+|Transaction (`txn`)|Transaction (V1)|A transaction to be executed by the Runtime.|
+|Current World State (`cws`)|World State (V1)|The world state just before the execution of the transaction, i.e., after sequentially executing every previous transaction.|
+|Blockchain Context (`bctx`)|Blockchain Context (V1)|A set of information about the current contents of the Blockchain.|
 
-And produces one output:
+#### Blockchain Context (V1)
 
-|Name|Type|Description|Initial value|
+Blockchain Context is a struct that contains a set of information about the current contents of the Blockchain, including the current block. 
+
+This information can be used in the execution of a transaction, including in the execution of some commands. For example, some contract Calls may choose to use the timestamp of the current block to determine whether a pre-defined event has happened.
+
+The fields of blockchain context are:
+
+|Field|Type|Description|
+|---|---|---|
+|Block Height|`u64`|The height field of the current block, i.e., block that the transaction to be executed is being considered for inclusion in.|
+|Base Fee Per Gas|`u64`|The base fee per gas field of the current block.|
+|Timestamp|`u32`|The timestamp field of the current block.|
+|Proposer Address|`PublicAddress`|The proposer address field of the current block.|
+|Previous Block Hash|`Sha256Hash`|The previous block hash field of the current block.|
+|Current View|`u64`|The current HotStuff-rs view number.|
+|Number of Blocks Proposed|`Option<HashMap<PublicAddress, u32>>`|A mapping between the public addresses of the validators in the current validator set and the number of blocks they have proposed so far in the current epoch. This field is `Some` only if the Transaction being executed contains a singular Next Epoch command (i.e., if the current block is an [epoch boundary block](Blockchain.md#epoch)).|
+
+### Output parameters
+
+|Output  parameter|Type|Description|
+|---|---|---|
+|Next World State (`nws`)|World State (V1)|The world state after executing the transaction.|
+|Receipt (`rcp`)|Receipt (V1)|A receipt summarizing the execution of the transaction.|
+
+## Execution model of the transition function
+
+This section introduces the terminology, symbols, and control flow concepts that we will use to specify the execution of the transition function. In particular:
+1. [State variables](#state-variables) lists variables that the transition function keeps track of throughout the execution of a single transaction.
+2. [Phases](#phases) describes the different ways execution can jump between *three* phases (pre-charge, commands, and charge), both in the normal ("happy path") case and in exceptional scenarios.
+3. [Control flow](#control-flow) TODO.
+4. [Gas counting (V1)](#gas-counting) specifies how Transition (V1) uses the gas formulas specified in the [Gas (V1)](Gas.md) chapter of the protocol to determine the gas used (computation and storage costs) of the execution of a transaction.
+5. [Pseudocode](#pseudocode) describes the pseudocode that we will use in the [common phases](#common-phases) and [command](#command) sections of this chapter to specify the sequence flow of each phase of the execution of a transaction.
+
+### State variables
+
+The transition function keeps track of 10 state variables throughout the execution of a single transaction, *including* the previously specified input parameters and return values. Besides the input parameters and return values, these variables are:
+
+|Variable|Type|Description|Initial value|
 |---|---|---|---|
-|$rcp$|`Vec<CommandReceipt>`|The receipt created by executing the transaction.|`Vec::new()`|
+|Command Index (`idx`)|`u32`|The index of the command currently being executed inside the transaction's vector of commands.|0|
+|Logs (`logs`)|`Vec<Log>`|A growing list of the logs emitted by the execution of the current *command*.|`Vec::new()`|
+|Return Value (`rval`)|`Vec<u8>`|The return value of the current *command*.|`Vec::new()`|
+|Gas Counter (`gc`)|`u64`|The amount of gas used so far in the execution of the current *transaction*|$G_{txincl}(txn)$|
+|Starting Gas (`sg`)|`u64`|The value of the Gas Counter at the beginning of the execution of the current *command*|$G_{txincl}(txn)$|
 
-Besides the three inputs and the one output, we also keep track of 4 additional state variables throughout transaction execution:
+### Phases
 
-|Name|Type|Description|Initial value|
-|---|---|---|---|
-|$idx$|`u32`|The index of the current command being executed|`0`|
-|$logs$|`Vec<Log>`|The logs created in the execution of a command.|`Vec::new()`|
-|$rval$|`Vec<u8>`|The return value of a command.|`Vec::new()`|
-|$gc$|`u64`|The amount of gas used so far.|$G_{txincl}(txn)$|
-|$sg$|`u64`|The value of gas used at the start of an iteration of the commands phase|$G_{txincl}(txn)$|
+The execution of a transaction in the transition function proceeds in three phases. Each phase consists of a specific sequence of steps, each doing an operation like mutating a state variable or accessing the world state.
 
-The latter two state variables are used for [gas counting](#gas-counting).
+The three phases and what each phase does at a high level are:
+1. **Pre-charge phase**: this phase makes simple checks to ensure that the transaction can be included in the block, updates the signer's nonce, and then tentatively charges the *maximum* gas fee that the transaction may use in its execution (as determined by the signer-specified gas limit).
+2. **Commands phase**: this phase executes the sequence of commands included in the transaction. This phase proceeds in iterations, with each iteration corresponding to one command.
+3. **Charge phase**: this phase *refunds* the amount of gas tentatively charged in the pre-charge step that was not used in the transaction's execution. It then transfers the priority fee to the proposer, and $G_{treasurybasefee}$% of the base fee to the treasury account.
 
 ### Control flow
 
-Execution can transition from one phase to another in a few different ways. We refer to these collectively as the “control flow” of transaction execution.
+Execution can transition from one phase to another in a few different ways. We refer to these collectively as the “control flow” of transaction execution. 
 
-![Control flow of transaction execution](assets/txn_exec_control_flow.drawio.png)
+The below flowchart depicts every possible way that the control flow could proceed. In the flowchart:
+- Boxes containing bolded text represent phases.
+- Solid lines with text represent transitions from one phase to another in the "happy path"
+- Dotted lines with text represent transitions from one phase to another outside the happy path.
+- Boxes containing non-bolded text represent the entrypoint of the control flow, as well as its exit-points (i.e., whether the transaction can be included in a block, or it must be rejected).
 
-The diagram above depicts the control flow. The left side of the diagram depicts the normal sequence of transitions in an execution. The right side of the diagram depicts exceptional transitions. All transitions (except the transition from pre-charge to the first iteration of the commands phase) are triggered by a named event, these are the names inset in the lines in the diagram. There are four kinds of events: *cancel*, *complete*, *abort*, and *gas exhausted*.
+```mermaid
+flowchart TB;
 
-In the normal case, execution begins at the pre-charge phase, then transitions to the first iteration of the commands phase after the pre-charge phase is fully executed, then transitions through each iteration of the commands phase and onto the charge phase on *complete*s. If the transaction does not have any commands, execution passes directly from pre-charge to charge.
+entrypoint["Entrypoint"]-->pre_charge
+pre_charge["<b>Pre-Charge</b>"]--Next Phase-->commands_0["<b>Commands[0]</b>"]
+commands_0--Next Phase-->commands_1["<b>Commands[1]</b>"]
+commands_1--Next Phase (multiple)-->commands_n["<b>Commands[n]</b>"]
+commands_n--Next Phase-->charge["<b>Charge</b>"]
+charge--Next Phase-->included["Included in Block"]
 
-In exceptional cases, execution can be *cancel*led in the pre-charge phase, or jump directly to the charge phase on *abort* or *gas exhausted*.
+pre_charge-.Reject.->rejected["Rejected from Block"]
+commands_0-.Abort/Gas Exhausted.->charge
+commands_1-.Abort/Gas Exhausted.->charge
+commands_n-.Abort/Gas Exhausted.->charge
+```
 
-*Cancel* is triggered explicitly if the transaction does not satisfy one of the checks done in the pre-charge step. This causes execution to end immediately, and for the transaction to be excluded from the block.
+As can be seen in the flowchart, there are *four* ways control flow can transition between one phase to another: Reject, Next Phase, Abort, and Gas Exhausted. These are specified in the following subsections.
 
-*Complete* is triggered explicitly after an iteration of the commands phase is fully executed. This causes:
-1. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation success as the exit code,
-2. the command receipt to be appended to $rcp$,
-3. $logs$ and $rval$ to be cleared.
-4. $sg = gc$.
-5. and execution to pass to the next iteration of the commands phase if there is a next iteration, and to the charge phase otherwise.
+#### Reject
 
-*Abort* is triggered explicitly if some command-specific invariant is violated during an iteration of the commands phase. This causes:
-1. all changes to the world state done in the current and preceding commands to be reverted, without changing $gc$,
-2. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with operation failed as the exit code,
-3. the command receipt to be appended to $rcp$,
-4. and execution to pass to the charge phase.
+Reject is triggered if the transaction does not satisfy any of the checks made in the pre-charge phase. This causes execution to end immediately, and for the transaction to be excluded from the block.
 
-*Gas exhausted* is triggered automatically after $gc$ exceeds the transaction’s gas limit. This causes:
-1. all changes to the world state done in the current and preceding commands to be reverted, without changing $gc$,
-2. a command receipt to be created using the current values of $rval$ and $logs$, $gc - sg$ as the gas used, and with gas exhausted as the exit code,
-3. the command receipt to be appended to $rcp$,
-4. and execution to pass to the charge phase.
+#### Next Phase
+
+Next Phase is triggered after an iteration of the commands phase is fully executed. The following sequence of events occur when next phase is triggered:
+1. A command receipt is appended to the `rcp` state variable containing *Operation Successful* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+2. `logs` and `rval` is set to their initial values.
+3. `sg` is set to `gc`.
+
+Control flow then passes to the next iteration of the commands phase (if there is a next iteration), or to the charge phase (otherwise).
+
+#### Abort
+
+Abort is triggered if some command-specific error occurs during an iteration of the commands phase (e.g., if a [Set Pool Settings](#set-pool-settings) command tries to set the commission rate of a pool to be greater than 100%). The following sequence of events occur when abort is triggered:
+1. All changes to `nws` done in the current and preceding *commands* are reverted without increasing `gc` (note that the changes done in the pre-charge phase are *not* reverted).
+2. A command receipt is appended to the `rcp` state variable containing *Operation Failed* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+
+Execution then passes directly to the charge phase.
+
+#### Gas Exhausted
+
+Gas Exhausted is triggered automatically upon `gc` exceeding the transaction’s gas limit. The following sequence of events occur when gas exhausted is triggered:
+1. All changes to `nws` done in the current and preceding *commands* are reverted without increasing `gc` (note that the changes done in the pre-charge phase are *not* reverted).
+2. A command receipt is appended to the `rcp` state variable containing *Gas Exhausted* in the command receipt's exit status field, the current value of `log` in its Log field, the current value of `gc - sg` in its Gas Used field, `rval` in its Return Value field.
+
+Control flow then passes directly to the charge phase.
 
 ### Gas counting
 
-$gc$ is adjusted *before* each step *in the commands phase* that involves operations in one of the [5 categories](Gas.md#gas) listed in the gas specification. Execution of steps in the pre-charge and charge phases do not adjust $gc$. They are paid for in the [transaction inclusion cost](Gas.md#transaction-inclusion-cost), which is included up-front in the initial value of $gc$.
+Gas counting is the mechanism by which the runtime keeps track of the computational and storage cost of executing a transaction. The cost of the gas used by a transaction is then charged from the balance of the transaction's signer in the pre-charge and charge phases.
+
+The runtime performs gas counting by adjusting the `gc` state variable (usually by increasing it). `gc` is adjusted *before* each step *in the commands phase* that involves operations in any of the [5 categories](Gas.md) listed in the gas chapter of the ParallelChain protocol. 
+
+Transition (V1) uses the gas formulas specified in [Gas (V1)](Gas.md) to deterministically compute the gas used (computation and storage costs) by each step.
 
 The cost of storing a minimal size command receipt for each of a transaction's commands is also already covered by the transaction inclusion cost. In exceptional circumstances, a transaction's receipt may contain less command receipts than there are commands. The cost of storing the excess command receipts in these cases are *not* refunded.
 
-The cost of storing the return value is charged on setting $rval$, the cost of storing a log is charged on appending a log into $logs$.
+The cost of storing the return value is charged on setting `rval`, the cost of storing a log is charged on appending a log into `logs`.
 
 ### Sequence flow pseudocode
 
