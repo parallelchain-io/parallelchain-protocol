@@ -94,17 +94,17 @@ The below flowchart depicts every possible way that the control flow could proce
 ```mermaid
 flowchart TB;
 
-entrypoint["Entrypoint"]-->pre_charge
-pre_charge["<b>Pre-Charge</b>"]--Next Phase-->commands_0["<b>Commands[0]</b>"]
-commands_0--Next Phase-->commands_1["<b>Commands[1]</b>"]
-commands_1--Next Phase (multiple)-->commands_n["<b>Commands[n]</b>"]
-commands_n--Next Phase-->charge["<b>Charge</b>"]
-charge--Next Phase-->included["Included in Block"]
+entrypoint["Entrypoint"]-->pre_charge["<b>Pre-Charge</b>"];
+pre_charge--Next Phase-->commands_0["<b>Commands[0]</b>"];
+commands_0--Next Phase-->commands_1["<b>Commands[1]</b>"];
+commands_1--"Next Phase (multiple)"-->commands_n["<b>Commands[n]</b>"];
+commands_n--Next Phase-->charge["<b>Charge</b>"];
+charge--Next Phase-->included["Included in Block"];
 
-pre_charge-.Reject.->rejected["Rejected from Block"]
-commands_0-.Abort/Gas Exhausted.->charge
-commands_1-.Abort/Gas Exhausted.->charge
-commands_n-.Abort/Gas Exhausted.->charge
+pre_charge-.Reject.->rejected["Rejected from Block"];
+commands_0-.Abort/Gas Exhausted.->charge;
+commands_1-.Abort/Gas Exhausted.->charge;
+commands_n-.Abort/Gas Exhausted.->charge;
 ```
 
 As can be seen in the flowchart, there are *four* ways control flow can transition between one phase to another: Reject, Next Phase, Abort, and Gas Exhausted. These are specified in the following subsections.
