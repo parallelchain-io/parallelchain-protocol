@@ -1,9 +1,5 @@
 # Peer-to-peer networking (P2P) (V1)
 
-|Revision number|
-|---|
-|0|
-
 ParallelChain replicas maintain a peer-to-peer network (P2P). P2P implements *two* high-level functionalities:
 * **Messaging**: P2P enables replicas to send messages to each other to replicate the state machine, maintain a pool of pending transactions, as well as notify each other of dropped transactions.
 * **Peer Discovery**: in order for messages to eventually be received by all of their intended recipients, the P2P network needs to be *connected*. However, forming a connected network topology is challenging, because the number of replicas for any particular ParallelChain blockchain is unbounded and can far exceed the number of transport-layer connections that a computer can feasibly maintain. Starting from a small set of "boot nodes", P2P's peer discovery forms and maintains a connected network topology without requiring every replica to be aware of every other replica.
