@@ -1,4 +1,4 @@
-# Peer-to-peer (P2P) networking
+# Peer-to-peer networking (P2P) (V1)
 
 |Revision number|
 |---|
