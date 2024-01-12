@@ -1,8 +1,4 @@
-# World State
-
-|Revision no.|
-|---|
-|0|
+# World State (V1)
 
 We adopt Ethereum's terminology and call the singular user-visible state that the ParalelChain protocol maintains the "World State".
 
@@ -15,7 +11,7 @@ This document specifies the structure and the contents of the world state, and i
 4. [Network Account Storage](#network-account-storage) specifies the contents of the storage trie under a special account called the Network Account.
 5. [Genesis State](#genesis-state) specifies the initial contents of the entire world state, before any transaction is executed.
 
-## Merkle Patricia Trie
+## Merkle Patricia Trie (V1)
 
 A Merkle Patricia Trie is a data structure that maintains a mapping between keys and values and that has two useful cryptographic properties:
 1. The entire content of an MPT is succinctly summarized in a single 32-byte `Keccak256` "root hash". Two MPTs are identical if they share the same root hash, and two MPTs are different if they have different root hashes. The root hash of the accounts trie after executing a block is included in its [block header](Blockchain.md#block-header).
@@ -31,7 +27,7 @@ ParallelChain protocol MPTs are [paritytech/trie-db](https://docs.rs/trie-db/0.2
 |Node Codec|[`ReferenceNodeCodecNoExt`](https://docs.rs/reference-trie/0.29.1/reference_trie/struct.ReferenceNodeCodecNoExt.html)|
 |Hasher|[`KeccakHasher`](https://docs.rs/keccak-hasher/0.16.0/keccak_hasher/struct.KeccakHasher.html#)|
 
-## Accounts Trie
+## Accounts Trie (V1)
 
 The singular accounts trie is the "top-level" MPT in the world state, and instances of storage tries can be thought of as being "attached" to this trie via their root hashes ("storage hash"). The accounts trie stores a set of **accounts**.
 
@@ -101,7 +97,7 @@ Or equivalently, using the following formula:
 
 [^2]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/4) to remove the visibility byte from MPT keys.
 
-## Storage Tries
+## Storage Tries (V1)
 
 Each instance of storage trie stores an individual **account storage**.
 
