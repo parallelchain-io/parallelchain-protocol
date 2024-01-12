@@ -1,8 +1,4 @@
-# Blockchain
-
-|Revision no.|
-|---|
-|0|
+# Blockchain (V1)
 
 The ParallelChain blockchain is a sequence of blocks, which in turn are sequences of transactions.
 
@@ -15,7 +11,7 @@ This chapter specifies the "block-level" features of this flow. It is organized 
  
 ## Data types
 
-### Block
+### Block (V1)
 
 A **block** is a structure composed of a fixed-size header and variable-size data (transactions and receipts). It has fields:
 
@@ -37,7 +33,7 @@ Blocks whose height is a multiple of $B_{epochlen}$ (except the 0th block) are *
 
 Epoch boundary blocks are special in that they contain only one transaction, signed by the block's proposer. This transaction in turn only has one command: [next epoch](Runtime.md#next-epoch). Epoch boundary blocks may cause the validator set to  change.
 
-### Block Header
+### Block Header (V1)
 
 A **block header** summarizes the data of a block, as well as contain metadata used in consensus and gives context about the block's creation and its position in the chain:
 
@@ -68,7 +64,7 @@ The amount of the network's computation and storage resources that a block can c
 |---|---|---|
 |$B_{maxgasused}$|250,000,000|The (inclusive) maximum value of the gas used field in a block's header.|
 
-#### Base fee formula
+#### Base fee formula (V1)
 
 |Formula|Value|Description|
 |---|---|---|
@@ -95,7 +91,7 @@ The intended result of the base fee per gas formula is to use pricing to adjust 
 
 This mechanism is nearly identical to [Ethereum's](https://github.com/paradigmxyz/reth/blob/8987f4e8be60b92d596acc21a2b27ecc4ede9f1a/crates/consensus/common/src/validation.rs#L245) in all respects except that the minimum base fee per gas is 8 instead of 7. This difference is a design oversight, and one that we intend to rectify in the next protocol major version.
 
-### HotStuff-rs Block
+### HotStuff-rs Block (V1)
 
 Separate from the block data type defined previously, HotStuff-rs also defines a [block](https://docs.rs/hotstuff_rs/latest/hotstuff_rs/types/struct.Block.html) data type. These two types are closely related, and either one can be converted into the other. This section specifies [the equivalence](#equivalence-between-hotstuff-rs-blocks-and-protocol-blocks) between the two block types.
 
@@ -148,7 +144,7 @@ The penultimate and final fields in a protocol block are the Transactions and th
 [^4]: We [plan](https://github.com/parallelchain-io/parallelchain-protocol/issues/16) to make the order of fields in HotStuff-rs block data the same as the order of fields in block header.
 
 
-### Transaction
+### Transaction (V1)
 
 A **transaction** is a digitally signed instruction by an identified party (the "signer") that authorizes the blockchain to execute a sequence of [commands](Runtime.md):
 
@@ -163,7 +159,7 @@ A **transaction** is a digitally signed instruction by an identified party (the 
 |Signature|`Signature`|An Ed25519 signature using the signer's private key over this transaction, but with the signature and hash fields all zeroed.| 
 |Hash|`CryptoHash`|The SHA256 hash of the populated signature field.|
 
-### Receipt
+### Receipt (V1)
 
 **Receipt** is a type alias of `Vec<CommandReceipt>`, and is a compact summary of what happened during the execution of a transaction.
 
@@ -176,7 +172,7 @@ Each **command receipt** in a receipt describe what happened during each of the 
 |Return value|`Vec<u8>`|Generic data with meaning that varies according to the variant of command that created the receipt.|
 |Log|`Vec<Log>`|[Logs](#log) created during the execution of the command.|
 
-#### Exit code
+#### Exit code (V1)
 
 An **exit code** is an enum included in a command receipt that informs how a command exited. A command can exit in one of three ways:
 
