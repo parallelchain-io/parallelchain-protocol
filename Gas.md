@@ -1,8 +1,4 @@
-# Gas
-
-|Revision no.|
-|---|
-|0|
+# Gas (V1)
 
 The cost of executing a transaction is measured in gas, and counted by updating the $gc$ state variable in the runtime.
 
