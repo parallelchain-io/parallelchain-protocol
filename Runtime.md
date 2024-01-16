@@ -579,7 +579,7 @@ ws.nas.current_epoch += 1;
 
 The above sequence flow invokes formulas that collectively decide how many tokens are rewarded to each particular stake at the end of an epoch.
 
-The intended result of these formulas is for the reward rate to reduce gradually from around 8.5% per annum in the first year of the blockchain's history, to 1.5% per annum by year 10:
+The intended result of these formulas is for the reward rate to reduce gradually from around 8.0% per annum in the first year of the blockchain's history, to 1.5% per annum by year 10:
 
 **`R_poolreward(n, v, p, rb)`** is the number of tokens rewarded at the end of epoch $n$--which had a total of $v$ validators--to a pool with $p$ power and which had proposed $rb$ blocks in the epoch:
 
