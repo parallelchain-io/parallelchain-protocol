@@ -24,12 +24,13 @@ For readability, we categorize RPCs into [transaction-related RPCs](#transaction
 
 ### submit_transaction 
 
-Submit a transaction to the mempool.
+Try to insert a Transaction into the Mempool. If the submitted transaction is successfully inserted into the target Fullnode's Mempool, it will broadcast the transaction to other Fullnodes in the P2P network.
 
 #### Request
 
 ```rust
 struct SubmitTransactionRequest {
+    /// The transaction to be inserted into the mempool.  
     transaction: Transaction,
 }
 ```
@@ -38,6 +39,7 @@ struct SubmitTransactionRequest {
 
 ```rust
 struct SubmitTransactionResponse {
+    /// The reason why the submitted transaction was not added to the mempool.
     error: Option<SubmitTransactionError>,
 }
 ```
@@ -45,21 +47,44 @@ struct SubmitTransactionResponse {
 Where `SubmitTransactionError`:
 ```rust
 enum SubmitTransactionError {
+    /// The submitted transaction's Nonce (`transaction.nonce`) is either "too small" or "too large".
+    ///
+    /// What "too small" or "too large" means exactly is up to implementations, but the following general
+    /// guidelines apply:
+    /// 1. Too small: if `transaction.nonce` is less-than or equal to `transaction.signer`'s nonce in the
+    ///    committed world state, then implementations should reject `transaction`, since it is impossible
+    ///    at this point for `transaction` to be committed.
+    /// 2. Too large: if `transaction.nonce` is *much* bigger than `transaction.signer`'s nonce in the
+    ///    committed world state, then implementations can choose to reject `transaction`, on the grounds
+    ///    that the Fullnode will have to wait too long before the transaction can be committed, and it
+    ///    would rather use the precious space in its local mempool to store transactions that are more likely
+    ///    to be committed in the near term.
+    /// 3. Existing nonce: if the local mempool already contains a transaction with the same nonce and signer
+    ///    as the `transaction`, the Fullnode can choose to reject `transaction`, e.g., if the existing
+    ///    transaction has a higher Priority Fee than the submitted transaction.
     UnacceptableNonce,
+    
+    /// The Fullnode's local Mempool does not have the capacity to include the submitted transaction.
     MempoolFull,
+
+    /// The Fullnode rejected the submitted transaction for reasons other than what is explicitly enumerated
+    /// by the protocol.
     Other,
 }
 ```
 
 ### transaction
 
-Get a transaction and optionally its receipt.
+Query a *committed* Transaction by its `transaction_hash`, returning not only the matching transaction but also the `block_hash` of the block that includes the transaction, the transaction's position within that block, and optionally, its receipt.
 
 #### Request
 
 ```rust
 struct TransactionRequest {    
+    /// The hash of the transaction to be queried.
     transaction_hash: CryptoHash,
+
+    /// Whether or not the queried transaction's Receipt should be included in the response.
     include_receipt: bool,
 }
 ```
@@ -68,43 +93,69 @@ struct TransactionRequest {
 
 ```rust
 struct TransactionResponse {
+    /// The transaction with the specified `transaction_hash`, if it exists and is already committed.
+    ///
+    /// # Optionality of the rest of 
+    ///
+    /// If `transaction` is `None`, then the rest of `TransactionResponse`s fields will also `None`. 
+    /// Likewise if `transaction` is `Some`, then the rest of the response fields will also be `Some`
+    /// (`receipt` will only be `Some` if `include_receipt` is set to `true in the request).
     transaction: Option<Transaction>,
+
+    /// The receipt of the returned transaction.
     receipt: Option<Receipt>,
+
+    /// The Hash of the committed block that contains the returned transaction.
     block_hash: Option<CryptoHash>,
+
+    /// The index of the returned transaction in the committed block's Transactions vector.
     position: Option<u32>,
 }
 ```
 
 ### transaction_position
 
-Find out where a transaction is in the blockchain.
+Query the `block_hash` of the committed Block that includes the Transaction identified by `transaction_hash`, as well as the `position` of the transaction within said block.
 
 #### Request
 
 ```rust
 struct TransactionPositionRequest {
+    /// The hash of the transaction whose position is to be queried.
     transaction_hash: CryptoHash,
 }
 ```
 
 #### Response
 
+Note: [^1].
+
 ```rust
 struct TransactionPositionResponse {
+    /// See Note: [1] above. 
     transaction_hash: Option<CryptoHash>,
+
+    /// If the requested `transaction_hash` matches a transaction in a committed block, then, the block's 
+    /// hash. Else `None`.
     block_hash: Option<CryptoHash>,
+
+    /// If `block_hash` is `Some`, then , the index of the queried transaction in the committed block's
+    /// Transactions vector.
     position: Option<u32>,
 }
 ```
 
+[^1]: This field is an erratum and has no semantic meaning. Fullnodes should include this field in their `TransactionPositionResponse`s, but clients should always ignore its value.
+
 ### receipt
 
-Get a transaction's receipt.
+Query the Receipt of the *committed* Transaction identified by `transaction_hash`, returning also the hash of the block that said transaction is included in, and the position of the transaction in the block.
 
 #### Request
 
 ```rust
-struct ReceiptRequest {    
+struct ReceiptRequest {
+    /// The hash of the transaction whose receipt is to be queried.
     transaction_hash: CryptoHash,
 }
 ```
@@ -113,9 +164,19 @@ struct ReceiptRequest {
 
 ```rust
 struct ReceiptResponse {
+    /// The hash of the transaction whose receipt was queried (this takes the same value as the
+    /// `transaction_hash` field of the request corresponding to this response).
     transaction_hash: CryptoHash,
+
+    /// The queried transaction's receipt, if said transaction has been included in a committed block.
     receipt: Option<Receipt>,
+
+    /// The hash of the committed block in which the queried transaction was included in.
     block_hash: Option<CryptoHash>,
+
+    /// The index of the queried transaction in the Transactions vector of the committed block in which
+    /// it is included. This equals the index of the transaction's receipt in the same block's Receipts
+    /// vector.
     position: Option<u32>,
 }
 ```
