@@ -23,7 +23,7 @@ A ParallelChain RPC call begins with a client sending an HTTP request over to a 
 |HTTP Method|Always "POST".|
 |Request Content-Type|Always "application/octet-stream".|
 |Response Status Code|We make the deliberate choice not to rely on HTTP status codes to report error cases to clients, as we find HTTP status codes restrictive and often misleading. Instead, we report errors in [response payloads](#request-and-response-payloads).<br/><br/>Therefore, the protocol assigns meaning only to two specific status codes:<ul><li>400 Bad Request: returned if the server cannot deserialize the request's body.</li><li>200 OK: returned in all other cases.</li></ul><br/>Implementations may choose to return other HTTP status codes (e.g., to report errors related to lower levels of the networking stack), but these have no protocol specified meaning.|
-|Message Body|See [request and response payloads](#request-and-response-payloads).|
+|Message Body|See [Requests and responses](#requests-and-responses).|
 
 ### Requests and responses
 
@@ -31,7 +31,7 @@ ParallelChain RPC calls operate based on a request-response cycle, with an RPC r
 
 RPC requests and responses are strongly typed, and each RPC endpoint has its own request and response types (which are specified for each endpoint later in the chapter). 
 
-In order to be transmitted over HTTP, RPC requests and responses are to be serialized using **Borsh**, and placed inside the Body of an HTTP request or HTTP response, respectively. Each message body should contain the serialization of one RPC request, or of one RPC response, and no other bytes.
+In order to be transmitted over HTTP, RPC requests and responses are to be serialized using [**Borsh**](http://borsh.io/), and placed inside the Body of an HTTP request or HTTP response, respectively. Each message body should contain the serialization of one RPC request, or of one RPC response, and no other bytes.
 
 ## Transaction RPCs
 
@@ -318,14 +318,22 @@ Some of the following RPCs' response structures reference types unique to this d
 
 ### state
 
-Get the state of a set of accounts (optionally including their contract code), and/or a set of storage tuples.
+Get the [fields](World%20State.md#Account-fields) of a set of `accounts` (choosing whether or not to include their contract code(s)), and/or a set of `storage_keys`.
 
 #### Request
 
 ```rust
 struct StateRequest {
+    /// The set of accounts whose fields (Nonce, Balance, CBI version, and Storage hash) will be queried.
     accounts: HashSet<PublicAddress>,
+    
+    /// Whether the Contract field should also be queried for the requested accounts.
     include_contracts: bool,
+
+    /// The set of accounts (`PublicAddress`) for which the specified storage keys (`HashSet<>)
+    
+    /// A set of accounts (`PublicAddress`) and the set of storage keys (`HashSet<Vec<u8>>`) that should be
+    /// queried for each account.
     storage_keys: HashMap<PublicAddress, HashSet<Vec<u8>>>,
 }
 ```
@@ -334,25 +342,41 @@ struct StateRequest {
 
 ```rust
 struct StateResponse {
+    /// The queried accounts.
     accounts: HashMap<PublicAddress, Account>,
+
+    /// The queried storage tuples.
     storage_tuples: HashMap<PublicAddress, HashMap<Vec<u8>, Vec<u8>>>,
+
+    /// The highest committed block hash at the point in which the world state was committed.
     block_hash: CryptoHash,
 }
 ```
 
 ### validator_sets
 
-Get the previous, current, and next validator sets, optionally including the stakes delegated to them.  
+Get the Previous, Current, and Next Validator Sets, optionally including the stakes delegated to them.  
 
 #### Request
 
 ```rust
 struct ValidatorSetsRequest {
+    /// Whether to query the previous validator set.
     include_prev: bool,
+
+    /// Whether to include the delegators included in the previous validator set.
     include_prev_delegators: bool,
+
+    /// Whether to query the current validator set.
     include_curr: bool,
+
+    /// Whether to include the delegators included in the current validator set.
     include_curr_delegators: bool,
+
+    /// Whether to query the next validator set.
     include_next: bool,
+
+    /// Whether to include the delegators included in the next validator set.
     include_next_delegators: bool,
 }
 ```
