@@ -25,11 +25,13 @@ A ParallelChain RPC call begins with a client sending an HTTP request over to a 
 |Response Status Code|We make the deliberate choice not to rely on HTTP status codes to report error cases to clients, as we find HTTP status codes restrictive and often misleading. Instead, we report errors in [response payloads](#request-and-response-payloads).<br/><br/>Therefore, the protocol assigns meaning only to two specific status codes:<ul><li>400 Bad Request: returned if the server cannot deserialize the request's body.</li><li>200 OK: returned in all other cases.</li></ul><br/>Implementations may choose to return other HTTP status codes (e.g., to report errors related to lower levels of the networking stack), but these have no protocol specified meaning.|
 |Message Body|See [request and response payloads](#request-and-response-payloads).|
 
-### RPC requests and responses
+### Requests and responses
 
-Each ParallelChain RPC call takes in a request data structure, and returns a response data structure. Requests and responses are strongly-typed, and each specific RPC has its own schemas for its request type and response type. These are specified later in this chapter using Rust syntax.
+ParallelChain RPC calls operate based on a request-response cycle, with an RPC request data structure being carried on the HTTP request, and an RPC response data structure carried on the HTTP response.
 
-RPC request and response types are serialized using **Borsh** and form the content of HTTP request and response bodies, respectively.
+RPC requests and responses are strongly typed, and each RPC endpoint has its own request and response types (which are specified for each endpoint later in the chapter). 
+
+In order to be transmitted over HTTP, RPC requests and responses are to be serialized using **Borsh**, and placed inside the Body of an HTTP request or HTTP response, respectively. Each message body should contain the serialization of one RPC request, or of one RPC response, and no other bytes.
 
 ## Transaction RPCs
 
