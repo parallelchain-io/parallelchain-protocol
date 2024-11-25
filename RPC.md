@@ -81,7 +81,7 @@ Query a *committed* Transaction by its `transaction_hash`, returning not only th
 
 ```rust
 struct TransactionRequest {    
-    /// The hash of the transaction to be queried.
+    /// Hash of the transaction to be queried.
     transaction_hash: CryptoHash,
 
     /// Whether or not the queried transaction's Receipt should be included in the response.
@@ -121,7 +121,7 @@ Query the `block_hash` of the committed Block that includes the Transaction iden
 
 ```rust
 struct TransactionPositionRequest {
-    /// The hash of the transaction whose position is to be queried.
+    /// Hash of the transaction whose position is to be queried.
     transaction_hash: CryptoHash,
 }
 ```
@@ -155,7 +155,7 @@ Query the Receipt of the *committed* Transaction identified by `transaction_hash
 
 ```rust
 struct ReceiptRequest {
-    /// The hash of the transaction whose receipt is to be queried.
+    /// Hash of the transaction whose receipt is to be queried.
     transaction_hash: CryptoHash,
 }
 ```
@@ -164,19 +164,18 @@ struct ReceiptRequest {
 
 ```rust
 struct ReceiptResponse {
-    /// The hash of the transaction whose receipt was queried (this takes the same value as the
+    /// Hash of the transaction whose receipt was queried (this takes the same value as the
     /// `transaction_hash` field of the request corresponding to this response).
     transaction_hash: CryptoHash,
 
     /// The queried transaction's receipt, if said transaction has been included in a committed block.
     receipt: Option<Receipt>,
 
-    /// The hash of the committed block in which the queried transaction was included in.
+    /// Hash of the committed block in which the queried transaction was included in.
     block_hash: Option<CryptoHash>,
 
-    /// The index of the queried transaction in the Transactions vector of the committed block in which
-    /// it is included. This equals the index of the transaction's receipt in the same block's Receipts
-    /// vector.
+    /// Index of the queried transaction in the Transactions vector of the committed block in which it is
+    /// included. This equals the index of the transaction's receipt in the same block's Receipts vector.
     position: Option<u32>,
 }
 ```
@@ -185,12 +184,13 @@ struct ReceiptResponse {
 
 ### block
 
-Get a block by its block hash.
+Query a Block (pending or committed) by its `block_hash`.
 
 #### Request
 
 ```rust
 struct BlockRequest {
+    /// Hash of the block to be queried.
     block_hash: CryptoHash,
 }
 ```
@@ -199,18 +199,20 @@ struct BlockRequest {
 
 ```rust
 struct BlockResponse {
+    /// The block with the queried `block_hash`. This block may be pending, or committed.
     block: Option<Block>,
 }
 ```
 
 ### block_header
 
-Get a block header by its block hash.
+Get the Block Header of a Block (pending or committed) by its `block_hash`.
 
 #### Request
 
 ```rust
 struct BlockHeaderRequest {
+    /// Hash of the block whose header is to be queried.
     block_hash: CryptoHash,
 }
 ```
@@ -219,18 +221,20 @@ struct BlockHeaderRequest {
 
 ```rust
 struct BlockHeaderResponse {
+    /// The header of the block with the queried `block_hash`. The block may be pending, or committed.
     block_header: Option<BlockHeader>,
 }
 ```
 
 ### block_height_by_hash
 
-Get the height of the block with a given block hash. 
+Get the height of the committed Block identified by `block_hash`.
 
 #### Request
 
 ```rust
 struct BlockHeightByHashRequest {
+    /// Hash of the block whose height will be queried.
     block_hash: CryptoHash,
 }
 ```
@@ -239,19 +243,24 @@ struct BlockHeightByHashRequest {
 
 ```rust
 struct BlockHeightByHashResponse {
+    /// Hash of the block whose height was queried (this takes the same value as the `block_hash` field
+    /// of the request corresponding to this response).
     block_hash: CryptoHash,
+
+    /// Height of the queried block. `None` if the block does not exist or has not been committed yet.
     block_height: Option<BlockHeight>,
 }
 ```
 
 ### block_hash_by_height
 
-Get the hash of a block at a given height.
+Get the hash of the committed Block at the specified `block_height`.
 
 #### Request
 
 ```rust
 struct BlockHashByHeightRequest {
+    /// Height of the block whose hash will be queried.
     block_height: BlockHeight,
 }
 ```
@@ -260,23 +269,28 @@ struct BlockHashByHeightRequest {
 
 ```rust
 struct BlockHashByHeightResponse {
+    /// Height of the block whose hash was queried (this takes the same value as the `block_height` field
+    /// of the request corresponding to this response).
     block_height: BlockHeight,
+
+    /// Hash of the queried block. `None` if the block does not exist or has not been committed yet.
     block_hash: Option<CryptoHash>,
 }
 ```
 
 ### highest_committed_block
 
-Get the hash of the highest committed block. 
+Get the hash of the current highest committed Block (the committed block with the highest block height). 
 
 #### Request
 
-None.
+Empty.
 
 #### Response
 
 ```rust
 struct HighestCommittedBlockResponse {
+    /// Hash of the current highest committed block. `None` if no blocks have been committed yet.
     block_hash: Option<CryptoHash>,
 }
 ```
