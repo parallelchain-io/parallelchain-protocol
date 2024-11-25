@@ -348,7 +348,7 @@ struct StateResponse {
     /// The queried storage tuples.
     storage_tuples: HashMap<PublicAddress, HashMap<Vec<u8>, Vec<u8>>>,
 
-    /// The highest committed block hash at the point in which the world state was committed.
+    /// The hash of the highest committed block at the point in time in which the world state was queried. 
     block_hash: CryptoHash,
 }
 ```
@@ -361,22 +361,22 @@ Get the Previous, Current, and Next Validator Sets, optionally including the sta
 
 ```rust
 struct ValidatorSetsRequest {
-    /// Whether to query the previous validator set.
+    /// Whether to query the previous validator set (PVS).
     include_prev: bool,
 
-    /// Whether to include the delegators included in the previous validator set.
+    /// Whether to include the delegators included in the PVS.
     include_prev_delegators: bool,
 
-    /// Whether to query the current validator set.
+    /// Whether to query the current validator set (CVS).
     include_curr: bool,
 
-    /// Whether to include the delegators included in the current validator set.
+    /// Whether to include the delegators included in the CVS.
     include_curr_delegators: bool,
 
-    /// Whether to query the next validator set.
+    /// Whether to query the next validator set (NVS).
     include_next: bool,
 
-    /// Whether to include the delegators included in the next validator set.
+    /// Whether to include the delegators included in the NVS.
     include_next_delegators: bool,
 }
 ```
@@ -385,10 +385,24 @@ struct ValidatorSetsRequest {
 
 ```rust
 struct ValidatorSetsResponse {
-    // The inner Option is None if we are at Epoch 0.
+    /// The previous validator set. 
+    ///
+    /// This is `None` if the request specifies `!include_prev`, `Some(None)` if the request specifies
+    /// `include_prev` but the current epoch number is 0, and `Some(Some(pvs))` otherwise.
     prev_validator_set: Option<Option<ValidatorSet>>,
+
+    /// The current validator set. 
+    ///
+    /// This is `None` if the request specifies `!include_prev`.
     curr_validator_set: Option<ValidatorSet>,
+
+    /// The next validator set.
+    ///
+    /// This is `None` if the request specifies `!include_prev`.
     next_validator_set: Option<ValidatorSet>,
+
+    /// The hash of the highest committed block at the point in time in which the PVS, CVS, and NVS were
+    /// queried. 
     block_hash: CryptoHash,
 }
 ```
