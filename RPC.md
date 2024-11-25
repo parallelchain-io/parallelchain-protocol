@@ -4,21 +4,33 @@
 |---|
 |0|
 
-This document specifies the ParallelChain RPC API, an HTTP API that Fullnodes make available to clients. 
+This chapter specifies the ParallelChain Remote Procedure Call (RPC) API, an HTTP API that Fullnodes make available to clients. 
 
-We spell out the general properties of the API, and then list the available RPCs. With each RPC, we define a request structure and a response structure. 
+This chapter is organized into four sections. The first section, [Calling RPCs](#calling-rpcs), spells out the general properties of the API, including chiefly how it is implemented over the HTTP protocol. The next three sections then lists all of the RPCs available in API, grouping them into three categories:
+1. [Transaction RPCs](#transaction-rpcs): RPCs for querying transactions and transaction-related information such as receipts, as well as for submitting transactions.
+2. [Block RPCs](#block-rpcs): RPCs for querying blocks and block-related information, such as block headers.
+3. [State RPCs](#state-rpcs): RPCs for querying the world state, e.g., for account balances, keys in storage tries, or information in the network account.
 
-For readability, we categorize RPCs into [transaction-related RPCs](#transaction-rpcs), [block-related RPCs](#block-rpcs), and [state-related RPCs](#state-rpcs).
+## Calling RPCs 
 
+### HTTP parameters
 
-## General properties
+A ParallelChain RPC call begins with a client sending an HTTP request over to a Fullnode and ends with that Fullnode sending over an HTTP response to the client in return. This HTTP request-response cycle must abide by the following parameters:
 
-1. Procedures are reachable over HTTP at a URL suffixed by the procedure’s name.
-2. All HTTP requests should be POST.
-3. Request and response structures are serialized using Borsh and carried in HTTP message bodies. 
-4. Procedures are “strongly typed”. If a procedure receives a request that cannot be deserialized, it will send back a response with an empty body and a Bad Request (400) status code.
-5. Conversely, if a procedure receives a request that can be deserialized, the response it sends back must have an OK (200) status code. This is even if, for example, something was “not found” (e.g., a block was not found with a specified hash), or a transaction was not added to the mempool. Error statuses are reported in response structures.
-6. All requests and OK responses should have a content-type of "application/octet-stream". This is so that we can easily extend the RPC API in the future to support other serialization schemes, e.g., JSON using "application/json".
+|Parameter|Value|
+|---|---|
+|Route|Each RPC offered by a Fullnode is reachable at a URL of the form "http://{host}/{shared_path}/{rpc_name}": <ul><li>Host: the domain name or the IP address that the Fullnode is accessible at.</li><li> Shared Path: an optional path under which each RPC endpoint directly sit. Useful if the host serves multiple HTTP APIs to separate them under different namespaces.</li><li> RPC Name: the name of the specific RPC.</li></ul><br/>For example, "http://example.com/fullnode_rpcs/submit_transaction" is a valid RPC route, and if a Fullnode serves the "submit_transaction" RPC on said route, the "block" RPC should be available on "http://example.com/fullnode_rpcs/block".|
+|HTTP Method|Always "POST".|
+|Request Content-Type|Always "application/octet-stream".|
+|Response Status Code|We make the deliberate choice not to rely on HTTP status codes to report error cases to clients, as we find HTTP status codes restrictive and often misleading. Instead, we report errors in [response payloads](#request-and-response-payloads).<br/><br/>Therefore, the protocol assigns meaning only to two specific status codes:<ul><li>400 Bad Request: returned if the server cannot deserialize the request's body.</li><li>200 OK: returned in all other cases.</li></ul><br/>Implementations may choose to return other HTTP status codes (e.g., to report errors related to lower levels of the networking stack), but these have no protocol specified meaning.|
+|Message Body|See [request and response payloads](#request-and-response-payloads).|
+
+### Request and response payloads
+
+- Serialized using Borsh.
+- Carried in HTTP message bodies.
+- Error communicated through response payload, not status code.
+- Why some response types duplicate fields of their corresponding request type.
 
 ## Transaction RPCs
 
