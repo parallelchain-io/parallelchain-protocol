@@ -351,7 +351,7 @@ struct StateResponse {
 }
 ```
 
-See: [`Account`](#account).
+See type definition: [`Account`](#account).
 
 ### validator_sets
 
@@ -438,7 +438,7 @@ struct PoolsResponse {
 }
 ```
 
-See: [`Pool`](#pool).
+See type definition: [`Pool`](#pool).
 
 ### deposits
 
@@ -472,13 +472,15 @@ struct DepositsResponse {
 }
 ```
 
-See: [`Deposit`](#deposit).
+See type definition: [`Deposit`](#deposit).
 
 ### stakes
 
-Get information about the stakes associated with a given set of `(operator, owner)` pairs.
+Get information about the stakes associated with a given set of `(operator, owner)` pairs in the current [Next Validator Set](World%20State.md#network-account-storage-fields).
 
 Each `(operator, owner)` pair asks to query information about the stake owned by `owner` which is currently staked to the pool operated by `operator`.
+
+For information about the stakes in the current Previous Validator Set and Current Validator Set, consider calling the [validator_sets](#validator_sets) RPC with the `include_prev_delegators` or `include_curr_delegators` flags enabled, respectively.
 
 #### Request
 
@@ -505,7 +507,7 @@ struct StakesResponse {
 }
 ```
 
-See: [`Stake`](#stake).
+See type definition: [`Stake`](#stake).
 
 ### view
 
