@@ -329,11 +329,9 @@ struct StateRequest {
     
     /// Whether the Contract field should also be queried for the requested accounts.
     include_contracts: bool,
-
-    /// The set of accounts (`PublicAddress`) for which the specified storage keys (`HashSet<>)
     
-    /// A set of accounts (`PublicAddress`) and the set of storage keys (`HashSet<Vec<u8>>`) that should be
-    /// queried for each account.
+    /// A set of accounts (`PublicAddress`) mapped to the set of storage keys (`HashSet<Vec<u8>>`) that 
+    /// should be queried for each account.
     storage_keys: HashMap<PublicAddress, HashSet<Vec<u8>>>,
 }
 ```
@@ -348,14 +346,14 @@ struct StateResponse {
     /// The queried storage tuples.
     storage_tuples: HashMap<PublicAddress, HashMap<Vec<u8>, Vec<u8>>>,
 
-    /// The hash of the highest committed block at the point in time in which the world state was queried. 
+    /// Hash of the highest committed block at the point in time in which the world state was queried. 
     block_hash: CryptoHash,
 }
 ```
 
 ### validator_sets
 
-Get the Previous, Current, and Next Validator Sets, optionally including the stakes delegated to them.  
+Get information about the Previous, Current, and Next Validator Sets, optionally including the stakes delegated to them.  
 
 #### Request
 
@@ -401,7 +399,7 @@ struct ValidatorSetsResponse {
     /// This is `None` if the request specifies `!include_prev`.
     next_validator_set: Option<ValidatorSet>,
 
-    /// The hash of the highest committed block at the point in time in which the PVS, CVS, and NVS were
+    /// Hash of the highest committed block at the point in time in which the PVS, CVS, and NVS were
     /// queried. 
     block_hash: CryptoHash,
 }
@@ -409,13 +407,16 @@ struct ValidatorSetsResponse {
 
 ### pools
 
-Get a set of pools.
+Get information about the pools operated by a given set of `operators`, optionally including the stakes currently contained in each pool.
 
 #### Request
 
 ```rust
 struct PoolsRequest {
+    /// The operators whose pools will be queried.
     operators: HashSet<Operator>,
+
+    /// Whether or not to include the stakes currently contained in each pool in the response.
     include_stakes: bool,
 }
 ```
@@ -424,20 +425,30 @@ struct PoolsRequest {
 
 ```rust
 struct PoolsResponse {
+    /// The queried Pools.
+    ///
+    /// If the requested operator does not currently operate a pool, the value mapped to it will be `None`.
     pools: HashMap<Operator, Option<Pool>>,
+    
+    /// Hash of the highest committed block at the point in time in which the requested pools were 
+    /// queried. 
     block_hash: CryptoHash,
 }
 ```
 
 ### deposits
 
-Get a set of deposits.
+Get information about the deposits associated with a given set of `(Operator, Owner)` pairs. 
+
+Each `(operator, owner)` pair asks to query information about the deposit owned by `owner` which is assigned to the pool operated by `operator`.
+
 
 #### Request
 
 ```rust
 struct DepositsRequest {
-    stakes: HashSet<(Operator, Owner)>,
+    /// The `(Operator, Owner)` pairs that identify the deposits to be queried.
+    deposits: HashSet<(Operator, Owner)>,
 }
 ```
 
@@ -445,19 +456,29 @@ struct DepositsRequest {
 
 ```rust
 struct DepositsResponse {
+    /// The queried deposits.
+    ///
+    /// If the requested `(Owner, Operator)` pair is not currently associated with a deposit, it will be 
+    /// mapped to `None`.
     deposits: HashMap<(Operator, Owner), Option<Deposit>>,
+
+    /// Hash of the highest committed block at the point in time in which the requested deposits were
+    /// queried.
     block_hash: CryptoHash,
 }
 ```
 
 ### stakes
 
-Get a set of deposits.
+Get information about the stakes associated with a given set of `(Operator, Owner)` pairs.
+
+Each `(operator, owner)` pair asks to query information about the stake owned by `owner` which is currently staked to the pool operated by `operator`.
 
 #### Request
 
 ```rust
 struct StakesRequest {
+    /// The `(Operator, Owner)` pairs that identify the stakes to be queried.
     stakes: HashSet<(Operator, Owner)>,
 }
 ```
@@ -466,21 +487,33 @@ struct StakesRequest {
 
 ```rust
 struct StakesResponse {
+    /// The queried stakes.
+    ///
+    /// If the requested `(Operator, Owner)` pair is not currently associated with a stake, it will be 
+    /// mapped to `None`. 
     stakes: HashMap<(Operator, Owner), Option<Stake>>,
+
+    /// Hash of the highest committed block at the point in time in which the requested stakes were
+    /// queried.
     block_hash: CryptoHash,
 }
 ```
 
 ### view
 
-Call a method in a contract in a read-only way.
+[View-call](Contracts.md#view-calls) a given `method` in a `target` contract and get the [Command Receipt](Blockchain.md#receipt-v1) describing the results of the execution.
 
 #### Request
 
 ```rust
 struct ViewRequest {
+    /// Address of the contract that will be view-called.
     target: PublicAddress,
+
+    /// The name of the method to view-call.
     method: Vec<u8>,
+
+    /// The arguments to pass to the view call.
     arguments: Option<Vec<Vec<u8>>>,
 }
 ```
@@ -489,6 +522,7 @@ struct ViewRequest {
 
 ```rust
 struct ViewResponse {
+    /// Command receipt describing the results of the view call execution.
     receipt: CommandReceipt,
 }
 ```
