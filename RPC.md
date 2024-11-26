@@ -314,7 +314,7 @@ State RPCs return multiple entities in the world state in a single response. Thi
 
 Every response structure includes the hash of the highest committed block when the snapshot is taken.
 
-Some of the following RPCs' response structures reference types unique to this document. These are specified in [types referenced in state RPC responses](#types-referenced-in-state-rpc-responses).
+Some of the following RPCs' response structures reference types unique to this document. These are specified in [types featuring in state-related RPC responses](#types-featuring-in-state-related-rpc-responses).
 
 ### state
 
@@ -350,6 +350,8 @@ struct StateResponse {
     block_hash: CryptoHash,
 }
 ```
+
+See: [`Account`](#account).
 
 ### validator_sets
 
@@ -414,7 +416,7 @@ Get information about the pools operated by a given set of `operators`, optional
 ```rust
 struct PoolsRequest {
     /// The operators whose pools will be queried.
-    operators: HashSet<Operator>,
+    operators: HashSet<PublicAddress>,
 
     /// Whether or not to include the stakes currently contained in each pool in the response.
     include_stakes: bool,
@@ -428,7 +430,7 @@ struct PoolsResponse {
     /// The queried Pools.
     ///
     /// If the requested operator does not currently operate a pool, the value mapped to it will be `None`.
-    pools: HashMap<Operator, Option<Pool>>,
+    pools: HashMap<PublicAddress, Option<Pool>>,
     
     /// Hash of the highest committed block at the point in time in which the requested pools were 
     /// queried. 
@@ -436,9 +438,11 @@ struct PoolsResponse {
 }
 ```
 
+See: [`Pool`](#pool).
+
 ### deposits
 
-Get information about the deposits associated with a given set of `(Operator, Owner)` pairs. 
+Get information about the deposits associated with a given set of `(operator, owner)` pairs. 
 
 Each `(operator, owner)` pair asks to query information about the deposit owned by `owner` which is assigned to the pool operated by `operator`.
 
@@ -447,8 +451,8 @@ Each `(operator, owner)` pair asks to query information about the deposit owned 
 
 ```rust
 struct DepositsRequest {
-    /// The `(Operator, Owner)` pairs that identify the deposits to be queried.
-    deposits: HashSet<(Operator, Owner)>,
+    /// The `(operator, owner)` pairs that identify the deposits to be queried.
+    deposits: HashSet<(PublicAddress, PublicAddress)>,
 }
 ```
 
@@ -458,9 +462,9 @@ struct DepositsRequest {
 struct DepositsResponse {
     /// The queried deposits.
     ///
-    /// If the requested `(Owner, Operator)` pair is not currently associated with a deposit, it will be 
+    /// If the requested `(owner, operator)` pair is not currently associated with a deposit, it will be 
     /// mapped to `None`.
-    deposits: HashMap<(Operator, Owner), Option<Deposit>>,
+    deposits: HashMap<(PublicAddress, PublicAddress), Option<Deposit>>,
 
     /// Hash of the highest committed block at the point in time in which the requested deposits were
     /// queried.
@@ -468,9 +472,11 @@ struct DepositsResponse {
 }
 ```
 
+See: [`Deposit`](#deposit).
+
 ### stakes
 
-Get information about the stakes associated with a given set of `(Operator, Owner)` pairs.
+Get information about the stakes associated with a given set of `(operator, owner)` pairs.
 
 Each `(operator, owner)` pair asks to query information about the stake owned by `owner` which is currently staked to the pool operated by `operator`.
 
@@ -478,8 +484,8 @@ Each `(operator, owner)` pair asks to query information about the stake owned by
 
 ```rust
 struct StakesRequest {
-    /// The `(Operator, Owner)` pairs that identify the stakes to be queried.
-    stakes: HashSet<(Operator, Owner)>,
+    /// The `(operator, owner)` pairs that identify the stakes to be queried.
+    stakes: HashSet<(PublicAddress, PublicAddress)>,
 }
 ```
 
@@ -489,15 +495,17 @@ struct StakesRequest {
 struct StakesResponse {
     /// The queried stakes.
     ///
-    /// If the requested `(Operator, Owner)` pair is not currently associated with a stake, it will be 
+    /// If the requested `(operator, owner)` pair is not currently associated with a stake, it will be 
     /// mapped to `None`. 
-    stakes: HashMap<(Operator, Owner), Option<Stake>>,
+    stakes: HashMap<(PublicAddress, PublicAddress), Option<Stake>>,
 
     /// Hash of the highest committed block at the point in time in which the requested stakes were
     /// queried.
     block_hash: CryptoHash,
 }
 ```
+
+See: [`Stake`](#stake).
 
 ### view
 
@@ -527,15 +535,20 @@ struct ViewResponse {
 }
 ```
 
-## Types referenced in state RPC responses
+## Types featuring in state-related RPC responses
 
-### Account-related types
+### Account
+
 ```rust
 enum Account {
     WithContract(AccountWithContract),
     WithoutContract(AccountWithoutContract),
 }
+```
 
+### Account With Contract
+
+```rust
 struct AccountWithContract {
     nonce: Nonce,
     balance: Balance,
@@ -543,7 +556,11 @@ struct AccountWithContract {
     cbi_version: Option<CBIVersion>,
     storage_hash: Option<CryptoHash>,
 }
+```
 
+### Account Without Contract
+
+```rust
 struct AccountWithoutContract {
     nonce: Nonce,
     balance: Balance,
@@ -552,17 +569,27 @@ struct AccountWithoutContract {
 }
 ```
 
-### Staking-related types 
+### Validator Set
 
 ```rust
 enum ValidatorSet {
     WithDelegators(Vec<PoolWithDelegators>),
     WithoutDelegators(Vec<PoolWithoutDelegators>),
 }
+```
 
-type Operator = PublicAddress;
-type Owner = PublicAddress;
+### Pool 
 
+```rust
+enum Pool {
+    WithStakes(PoolWithDelegators),
+    WithoutStakes(PoolWithoutDelegators),
+}
+```
+
+### Pool With Delegators
+
+```rust
 struct PoolWithDelegators {
     operator: PublicAddress,
     power: Balance,
@@ -570,27 +597,35 @@ struct PoolWithDelegators {
     operator_stake: Option<Stake>,
     delegated_stakes: Vec<Stake>,
 }
+```
 
+### Pool Without Delegators
+
+```rust
 struct PoolWithoutDelegators {
     operator: PublicAddress,
     power: Balance,
     commission_rate: u8, 
     operator_stake: Stake,
 }
+```
 
+### Deposit
+
+```rust
 struct Deposit {
     owner: PublicAddress,
     balance: u64,
     auto_stake_rewards: bool,
 }
 
+```
+
+### Stake
+
+```rust
 struct Stake {
     owner: PublicAddress,
     power: Balance,
-}
-
-enum Pool {
-    WithStakes(PoolWithStakes),
-    WithoutStakes(PoolWithoutStakes),
 }
 ```
