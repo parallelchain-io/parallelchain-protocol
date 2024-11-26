@@ -35,6 +35,8 @@ In order to be transmitted over HTTP, RPC requests and responses are to be seria
 
 ## Transaction RPCs
 
+Transaction RPCs allow clients to query [transactions](Blockchain.md#transaction-v1) and transaction-related information such as receipts, as well as submit transactions.
+
 ### submit_transaction 
 
 Try to insert a Transaction into the Mempool. If the submitted transaction is successfully inserted into the target Fullnode's Mempool, it will broadcast the transaction to other Fullnodes in the P2P network.
@@ -195,6 +197,8 @@ struct ReceiptResponse {
 
 ## Block RPCs
 
+Block RPCs allow users to query [blocks](Blockchain.md#block-v1) and block-related information like block headers.
+
 ### block
 
 Query a Block (pending or committed) by its `block_hash`.
@@ -310,9 +314,9 @@ struct HighestCommittedBlockResponse {
 
 ## State RPCs
 
-State RPCs return multiple entities in the world state in a single response. This allows clients to get a consistent snapshot of the world state in a single call.
+State RPCs allow clients to query the [world state](World%20State.md), for example for account balances, keys in storage tries, or information in the network account.
 
-Every response structure includes the hash of the highest committed block when the snapshot is taken.
+State RPCs return multiple entities in the world state in a single response. This allows clients to get a consistent snapshot of the world state in a single call. Every response structure includes the hash of the highest committed block when the snapshot is taken in a field called `block_hash`.
 
 Some of the following RPCs' response structures reference types unique to this document. These are specified in [types featuring in state-related RPC responses](#types-featuring-in-state-related-rpc-responses).
 
