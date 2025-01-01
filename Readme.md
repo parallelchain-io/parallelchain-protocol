@@ -1,4 +1,5 @@
 <div align="center">
+    <img src="./assets/ParallelChain Logo.png" alt="Description" width="140" />
     <h1>The ParallelChain Protocol</h1>
     <p>Version 0.4.0</p>
 </div>
