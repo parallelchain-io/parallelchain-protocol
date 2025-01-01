@@ -1,10 +1,10 @@
-# The ParallelChain Mainnet Protocol
+<div align="center">
+    <img src="./assets/ParallelChain Logo.png" alt="Description" width="140" />
+    <h1>The ParallelChain Protocol</h1>
+    <p>Version 0.4.0</p>
+</div>
 
-|Revision no.|Version no.|
-|---|---|
-|0|0.4|
-
-This folder contains the specification for the ParallelChain Mainnet protocol, a protocol which maintains a Byzantine Fault Tolerant, Proof of Stake blockchain with programmability through WebAssembly smart contracts.
+This folder contains the specification for the ParallelChain (Mainnet) protocol, a protocol which maintains a Byzantine Fault Tolerant, Proof of Stake blockchain with programmability through WebAssembly smart contracts.
 
 ParallelChain Mainnet maintains a singular state called the [world state](World%20State.md), which takes the form of a set of “accounts”. Users modify this state by using an [RPC](RPC.md) API to send digitally-signed instructions called “transactions” into servers called “validators”. These validators batch transactions into blocks, and then link the blocks together to form a sequential history of transactions called a [blockchain](Blockchain.md). A component called the [runtime](Runtime.md) executes transactions, causing deterministic effects on the world state.
 
@@ -31,6 +31,6 @@ Please try to label your issues appropriately.
 
 ## Copyright and license
 
-Copyright 2023, ParallelChain Lab.
+Copyright 2024, ParallelChain Lab.
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
