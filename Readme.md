@@ -14,12 +14,6 @@ There can be many, many validators, spread across the globe. To make sure that t
 
 The 7 highlighted items in the description you just read correspond to the 7 different aspects of the ParallelChain Mainnet protocol described in this specification. Each aspect is described in this folder as a separate markdown document. We don’t believe there is one right place to start reading this specification. Just jump to an aspect you are interested in, and start reading.
 
-## Conventions 
-
-TODO:
-- Named formulas.
-- Serialization scheme.
-
 ## If you are reading this document as a PDF
 
 The ParallelChain Mainnet specification is originally written in the form of a set of 7 markdown documents. This PDF combines the 7 markdown documents into a single PDF document, which some readers may prefer, but invalidates some of the inter-document hyperlinks in the text. 
@@ -35,11 +29,8 @@ You should open an issue on GitHub if you:
 
 Please try to label your issues appropriately.
 
-
-
 ## Copyright and license
 
 Copyright 2023, ParallelChain Lab.
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
-

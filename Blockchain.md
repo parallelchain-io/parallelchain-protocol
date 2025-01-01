@@ -163,7 +163,7 @@ A **transaction** is a digitally signed instruction by an identified party (the 
 
 **Receipt** is a type alias of `Vec<CommandReceipt>`, and is a compact summary of what happened during the execution of a transaction.
 
-Each **command receipt** in a receipt describe what happened during each of the transactions' commands:
+Each **command receipt** in a receipt describe what happened during one of the transactions' commands:
 
 |Field|Type|Description|
 |---|---|---|

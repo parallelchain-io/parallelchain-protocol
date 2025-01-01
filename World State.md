@@ -2,12 +2,12 @@
 
 We adopt Ethereum's terminology and call the singular user-visible state that the ParalelChain protocol maintains the "World State".
 
-The world state is a set of key-value tuples representing the state of every *account*, stored inside a set of [Merkle Patricia Trie (MPT)](#merkle-patricia-trie) data structures.
+The world state is a set of key-value tuples representing the state of every *account*, stored inside a set of [Merkle Patricia Trie (MPT)](#merkle-patricia-trie-v1) data structures.
 
 This document specifies the structure and the contents of the world state, and is organized into five sections:
-1. [Merkle Patricia Trie](#merkle-patricia-trie) specifies the variant of the MPT data structure that the ParallelChain protocol uses. The world state is comprised of two kinds of MPTs.
-2. [Accounts Trie](#accounts-trie) specifies the first kind of MPT in the world state: the singular Accounts Trie.
-3. [Storage Tries](#storage-tries) specifies the second kind of MPT: the Storage Trie. Unlike the accounts trie, which is singular, there can be many storage tries.
+1. [Merkle Patricia Trie](#merkle-patricia-trie-v1) specifies the variant of the MPT data structure that the ParallelChain protocol uses. The world state is comprised of two kinds of MPTs.
+2. [Accounts Trie](#accounts-trie-v1) specifies the first kind of MPT in the world state: the singular Accounts Trie.
+3. [Storage Tries](#storage-tries-v1) specifies the second kind of MPT: the Storage Trie. Unlike the accounts trie, which is singular, there can be many storage tries.
 4. [Network Account Storage](#network-account-storage) specifies the contents of the storage trie under a special account called the Network Account.
 5. [Genesis State](#genesis-state) specifies the initial contents of the entire world state, before any transaction is executed.
 
