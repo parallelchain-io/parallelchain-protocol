@@ -34,10 +34,10 @@ To enforce this, host functions that are marked as not available in view calls i
 ### Gas metering
 
 In contract calls and inside host functions, we charge for four kinds of operations:
-1. [Reading from and writing to guest memory from host code](gas#reading-wasm-memory-in-host-functions-inside-a-contract-call).
-2. [Storage gets and sets](gas#world-state-access).
-3. [Returning values and pushing logs to the receipt](gas#transaction-related-data-storage).
-4. Computation of [cryptographic operations](gas#cryptographic-operations-inside-work-steps).
+1. [Reading from and writing to guest memory from host code](Gas.md#accessing-wasm-memory-from-host-functions).
+2. [Storage gets and sets](Gas.md#world-state-storage-and-access).
+3. [Returning values and pushing logs to the receipt](Gas.md#transaction-related-data-storage).
+4. Computation of [cryptographic operations](Gas.md#cryptographic-operations).
 
 We *do not* charge gas for reading host function arguments or for writing host function return values.
 
